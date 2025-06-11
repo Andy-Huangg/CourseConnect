@@ -9,19 +9,25 @@ namespace backend
         public static void Main(string[] args)
         {
             var builder = WebApplication.CreateBuilder(args);
+            builder.Configuration.AddUserSecrets<Program>();
             // Add services to the container.
             builder.Services.AddControllers();
 
 
             // Configure DbContext before building the app
+            var connectionString = builder.Configuration.GetConnectionString("AzureSqlConnection");
+            Console.WriteLine(connectionString);
             if (builder.Environment.IsDevelopment())
             {
                 builder.Services.AddDbContext<StudentContext>(options =>
-                    options.UseInMemoryDatabase("Student"));
+                    // options.UseInMemoryDatabase("Student"));
+                    options.UseSqlServer(connectionString));
             }
             else
             {
-                Console.WriteLine("Production");
+                builder.Services.AddDbContext<StudentContext>(options =>
+                    // options.UseInMemoryDatabase("Student"));
+                    options.UseSqlServer(connectionString));
             }
 
             builder.Services.AddScoped<IStudentRepository, StudentRepository>();
