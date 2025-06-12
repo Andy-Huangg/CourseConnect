@@ -6,9 +6,9 @@ namespace backend.Repositories
     public class StudentRepository : IStudentRepository
     {
         
-        private readonly StudentContext _context;
+        private readonly AppDbContext _context;
 
-        public StudentRepository(StudentContext context)
+        public StudentRepository(AppDbContext context)
         {
             _context = context;
         }

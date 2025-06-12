@@ -19,13 +19,13 @@ namespace backend
             Console.WriteLine(connectionString);
             if (builder.Environment.IsDevelopment())
             {
-                builder.Services.AddDbContext<StudentContext>(options =>
+                builder.Services.AddDbContext<AppDbContext>(options =>
                     // options.UseInMemoryDatabase("Student"));
                     options.UseSqlServer(connectionString));
             }
             else
             {
-                builder.Services.AddDbContext<StudentContext>(options =>
+                builder.Services.AddDbContext<AppDbContext>(options =>
                     // options.UseInMemoryDatabase("Student"));
                     options.UseSqlServer(connectionString));
             }
