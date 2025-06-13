@@ -15,9 +15,10 @@ namespace backend.Controllers
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
 
-        public AuthController(IConfiguration configuration)
+        public AuthController(IConfiguration configuration, AppDbContext context)
         {
             _configuration = configuration;
+            _context = context;
         }
 
         [HttpPost("register")]
