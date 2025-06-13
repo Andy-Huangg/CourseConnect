@@ -38,7 +38,6 @@ namespace backend
             // Configure JWT Auth
             var jwtKey = builder.Configuration["Jwt:Key"];
             var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-            Console.WriteLine(jwtKey);
 
             builder.Services.AddAuthentication(options =>
             {
