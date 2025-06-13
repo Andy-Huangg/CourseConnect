@@ -1,6 +1,9 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Repositories;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 
 namespace backend
 {
@@ -16,9 +19,9 @@ namespace backend
 
             // Configure DbContext before building the app
             var connectionString = builder.Configuration.GetConnectionString("AzureSqlConnection");
-            Console.WriteLine(connectionString);
             if (builder.Environment.IsDevelopment())
             {
+                builder.Configuration.AddUserSecrets<Program>();
                 builder.Services.AddDbContext<AppDbContext>(options =>
                     // options.UseInMemoryDatabase("Student"));
                     options.UseSqlServer(connectionString));
@@ -32,6 +35,31 @@ namespace backend
 
             builder.Services.AddScoped<IStudentRepository, StudentRepository>();
 
+            // Configure JWT Auth
+            var jwtKey = builder.Configuration["Jwt:Key"];
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+            Console.WriteLine(jwtKey);
+
+            builder.Services.AddAuthentication(options =>
+            {
+                options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
+                options.DefaultChallengeScheme = JwtBearerDefaults.AuthenticationScheme;
+            }).AddJwtBearer(options =>
+            {
+                options.TokenValidationParameters = new TokenValidationParameters
+                {
+                    ValidateIssuer = true,
+                    ValidateAudience = true,
+                    ValidateLifetime = true,
+                    ValidateIssuerSigningKey = true,
+                    ValidIssuer = jwtIssuer,
+                    ValidAudience = jwtIssuer,
+                    IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey))
+                };
+            });
+            builder.Services.AddAuthorization();
+
+            // Setup CORS
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowLocalhost",
@@ -61,10 +89,8 @@ namespace backend
             }
 
             app.UseHttpsRedirection();
-
+            app.UseAuthentication();
             app.UseAuthorization();
-
-
             app.MapControllers();
 
             app.Run();
