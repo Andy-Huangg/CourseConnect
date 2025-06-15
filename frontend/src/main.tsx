@@ -4,11 +4,16 @@ import { StrictMode } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router";
 import "./index.css";
 import App from "./App.tsx";
+import Signup from "./Signup.tsx";
 
 const router = createBrowserRouter([
   {
     path: "/",
     Component: App,
+  },
+  {
+    path: "/Signup",
+    Component: Signup,
   },
 ]);
 
