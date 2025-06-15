@@ -28,7 +28,7 @@ namespace backend.Controllers
             var existingUser = await _context.User.FirstOrDefaultAsync(u => u.Username == registerDto.Username);
             if (existingUser != null)
             {
-                return BadRequest("Username already exists.");
+                return BadRequest(new { message = "Username already exists." });
             }
 
             // Hash the password
@@ -58,13 +58,13 @@ namespace backend.Controllers
 
             if (user == null)
             {
-                return Unauthorized("Invalid username or password.");
+                return Unauthorized(new { message = "Invalid username or password." });
             }
 
             // Validate the hashed password
             if (!BCrypt.Net.BCrypt.Verify(loginDto.Password, user.PasswordHash))
             {
-                return Unauthorized("Invalid username or password.");
+                return Unauthorized(new { message = "Invalid username or password." });
             }
 
             // Generate JWT token
