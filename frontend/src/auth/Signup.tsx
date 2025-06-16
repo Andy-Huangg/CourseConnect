@@ -48,6 +48,7 @@ export default function Signup() {
         margin="normal"
         value={username}
         onChange={(e) => setUsername(e.target.value)}
+        autoComplete="username"
       />
       <TextField
         label="Password"
@@ -56,6 +57,7 @@ export default function Signup() {
         margin="normal"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
+        autoComplete="new-password"
       />
       <Button
         type="submit"
