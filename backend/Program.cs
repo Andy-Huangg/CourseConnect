@@ -65,7 +65,7 @@ namespace backend
                 options.AddPolicy("AllowLocalhost",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173")
+                        policy.WithOrigins("http://localhost:5173", "https://msa-phase2-omy27x08a-andy-huanggs-projects.vercel.app")
                               .AllowAnyHeader()
                               .AllowAnyMethod();
                     });
