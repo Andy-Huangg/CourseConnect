@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { useChatSocket } from "./hooks/useChatSocket";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
@@ -7,6 +8,10 @@ import "./App.css";
 function App() {
   const [count, setCount] = useState(0);
   const [message, setMessage] = useState("");
+  const [input, setInput] = useState("");
+  const { messages, sendMessage } = useChatSocket(
+    `${import.meta.env.VITE_WS_URL}`
+  );
 
   useEffect(() => {
     // Fetch data from the backend
@@ -40,6 +45,22 @@ function App() {
       </p>
       <Link to="/login">Go to Login</Link>
 
+      <div>
+        <h2>Chat</h2>
+        <div
+          style={{ border: "1px solid #ccc", height: 200, overflowY: "auto" }}
+        >
+          {messages.map((msg, i) => (
+            <div key={i}>{msg}</div>
+          ))}
+        </div>
+        <input
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && sendMessage(input)}
+        />
+        <button onClick={() => sendMessage(input)}>Send</button>
+      </div>
       <h1>Message: {message}</h1>
     </>
   );
