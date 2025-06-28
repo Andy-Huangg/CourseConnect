@@ -4,6 +4,7 @@ using backend.Repositories;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
+using backend.WebSockets;
 
 namespace backend
 {
@@ -62,7 +63,7 @@ namespace backend
             // Setup CORS
             builder.Services.AddCors(options =>
             {
-                options.AddPolicy("AllowLocalhost",
+                options.AddPolicy("AllowFrontend",
                     policy =>
                     {
                         policy.WithOrigins("http://localhost:5173", "https://msa-phase2-omy27x08a-andy-huanggs-projects.vercel.app")
@@ -105,7 +106,23 @@ namespace backend
 
             var app = builder.Build();
 
-            app.UseCors("AllowLocalhost");
+            // Use Web Sockets
+            app.UseWebSockets();
+
+            app.Map("/ws/chat", async context =>
+            {
+                if (context.WebSockets.IsWebSocketRequest)
+                {
+                    using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
+                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket);
+                }
+                else
+                {
+                    context.Response.StatusCode = 400;
+                }
+            });
+
+            app.UseCors("AllowFrontend");
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
