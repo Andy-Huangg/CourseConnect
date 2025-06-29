@@ -111,12 +111,13 @@ namespace backend
             // Use Web Sockets
             app.UseWebSockets();
 
-            app.Map("/ws/chat", async context =>
+            app.Map("/ws/chat", async (HttpContext context) =>
             {
                 if (context.WebSockets.IsWebSocketRequest)
                 {
                     using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
-                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket);
+                    var chatRepo = context.RequestServices.GetRequiredService<IChatRepository>();
+                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo);
                 }
                 else
                 {
