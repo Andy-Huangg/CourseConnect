@@ -23,6 +23,18 @@ const initialState: AuthState = {
   error: null,
 };
 
+// Try to extract username from token
+const token = localStorage.getItem("jwt");
+if (token) {
+  try {
+    // Simple JWT parsing (payload is the second part)
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    initialState.user = payload.sub; // 'sub' claim contains the username
+  } catch (e) {
+    console.error("Error parsing JWT token", e);
+  }
+}
+
 // Async thunks
 export const login = createAsyncThunk(
   "auth/login",
