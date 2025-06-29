@@ -35,6 +35,8 @@ namespace backend
             }
 
             builder.Services.AddScoped<IStudentRepository, StudentRepository>();
+            builder.Services.AddScoped<IChatRepository, ChatRepository>();
+
 
             // Configure JWT Auth
             var jwtKey = builder.Configuration["Jwt:Key"];
