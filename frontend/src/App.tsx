@@ -5,13 +5,22 @@ import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
 
+const COURSES = [
+  { id: 1, name: "Global" },
+  { id: 2, name: "Test1" },
+  { id: 3, name: "Test2" },
+];
+
 function App() {
   const [count, setCount] = useState(0);
   const [message, setMessage] = useState("");
   const [input, setInput] = useState("");
-  const { messages, sendMessage } = useChatSocket(
-    `${import.meta.env.VITE_WS_URL}`
-  );
+  const [selectedCourse, setSelectedCourse] = useState(COURSES[0].id);
+  // Build the WebSocket URL with the selected courseId as a query param
+  const wsBase = import.meta.env.VITE_WS_URL;
+  const wsUrl = `${wsBase}?courseId=${selectedCourse}`;
+
+  const { messages, sendMessage } = useChatSocket(wsUrl);
 
   useEffect(() => {
     // Fetch data from the backend
@@ -47,6 +56,19 @@ function App() {
 
       <div>
         <h2>Chat</h2>
+        <label>
+          Select Course:{" "}
+          <select
+            value={selectedCourse}
+            onChange={(e) => setSelectedCourse(Number(e.target.value))}
+          >
+            {COURSES.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+          </select>
+        </label>
         <div
           style={{ border: "1px solid #ccc", height: 200, overflowY: "auto" }}
         >

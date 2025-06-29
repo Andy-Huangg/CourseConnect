@@ -5,7 +5,15 @@ export function useChatSocket(url: string) {
   const [messages, setMessages] = useState<string[]>([]);
 
   useEffect(() => {
-    socketRef.current = new WebSocket(url);
+    // Get token from localStorage
+    const token = localStorage.getItem("jwt");
+
+    // Ensure URL has token parameter
+    const urlWithToken = url.includes("token=")
+      ? url
+      : `${url}${url.includes("?") ? "&" : "?"}token=${token}`;
+
+    socketRef.current = new WebSocket(urlWithToken);
 
     socketRef.current.onmessage = (event) => {
       setMessages((prev) => [...prev, event.data]);
