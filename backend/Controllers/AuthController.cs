@@ -46,7 +46,7 @@ namespace backend.Controllers
             _context.User.Add(newUser);
             await _context.SaveChangesAsync();
 
-            var token = GenerateJwtToken(newUser.Username);
+            var token = GenerateJwtToken(newUser.Id, newUser.Username);
 
             return Ok(new { message = "User registered successfully.", token });
         }
@@ -68,11 +68,11 @@ namespace backend.Controllers
             }
 
             // Generate JWT token
-            var token = GenerateJwtToken(user.Username);
+            var token = GenerateJwtToken(user.Id, user.Username);
             return Ok(new { token });
         }
 
-        private string GenerateJwtToken(string username)
+        private string GenerateJwtToken(int userId, string username)
         {
             var jwtKey = _configuration["Jwt:Key"];
             var jwtIssuer = _configuration["Jwt:Issuer"];
@@ -86,7 +86,8 @@ namespace backend.Controllers
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, username),
-                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString())
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

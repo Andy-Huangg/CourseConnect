@@ -35,10 +35,13 @@ namespace backend.WebSockets
                 {
                     var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
+                    // Get user ID from JWT claims
+                    var userId = context.User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier)?.Value ?? "Anonymous";
+
                     // Save message to DB with courseId
                     await chatRepository.AddMessageAsync(new ChatMessage
                     {
-                        SenderId = "Placeholder", // Or get from context/user if available
+                        SenderId = userId,
                         Content = message,
                         Timestamp = DateTime.UtcNow,
                         CourseId = courseId.Value
