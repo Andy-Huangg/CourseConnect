@@ -13,7 +13,6 @@ import {
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { login } from "./authSlice";
-import ThemeToggle from "../components/ThemeToggle";
 
 export default function Login() {
   const [username, setUsername] = useState("");
