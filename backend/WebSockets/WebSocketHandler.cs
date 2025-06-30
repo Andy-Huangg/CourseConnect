@@ -98,7 +98,9 @@ namespace backend.WebSockets
                         CourseId = courseId.Value
                     });
 
-                    var sendBuffer = Encoding.UTF8.GetBytes(message);
+                    // Format message with sender info for broadcasting
+                    var formattedMessage = $"{userId?.ToString() ?? "Anonymous"}: {message}";
+                    var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
                     foreach (var client in _courseClients[courseId.Value].Where(c => c.State == WebSocketState.Open))
                     {
                         await client.SendAsync(new ArraySegment<byte>(sendBuffer),
