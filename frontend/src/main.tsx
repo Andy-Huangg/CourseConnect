@@ -1,7 +1,6 @@
-import React from "react";
 import ReactDOM from "react-dom/client";
 import { StrictMode } from "react";
-import { createBrowserRouter, Navigate, RouterProvider } from "react-router";
+import { createBrowserRouter, RouterProvider } from "react-router";
 import "./index.css";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
