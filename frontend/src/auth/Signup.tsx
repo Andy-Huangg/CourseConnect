@@ -6,8 +6,11 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Link,
+  Stack,
+  Paper,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { signup } from "./authSlice";
 
@@ -34,50 +37,67 @@ export default function Signup() {
   };
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleSignup}
-      sx={{ maxWidth: 400, mx: "auto", mt: 4 }}
-    >
-      <Typography variant="h5" mb={2}>
-        Sign Up
-      </Typography>
-      <TextField
-        label="Username"
-        fullWidth
-        margin="normal"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        autoComplete="username"
-      />
-      <TextField
-        label="Password"
-        type="password"
-        fullWidth
-        margin="normal"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="new-password"
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        fullWidth
-        disabled={isLoading}
-        sx={{ mt: 2 }}
-      >
-        {isLoading ? <CircularProgress size={24} /> : "Sign Up"}
-      </Button>
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {isAuthenticated && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          Signup successful! Redirecting...
-        </Alert>
-      )}
+    <Box sx={{ maxWidth: 400, mx: "auto", mt: 4 }}>
+      <Paper sx={{ p: 4, borderRadius: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h5">Sign Up</Typography>
+        </Box>
+
+        <Box component="form" onSubmit={handleSignup}>
+          <TextField
+            label="Username"
+            fullWidth
+            margin="normal"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+          />
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="new-password"
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            disabled={isLoading}
+            sx={{ mt: 2 }}
+          >
+            {isLoading ? <CircularProgress size={24} /> : "Sign Up"}
+          </Button>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {isAuthenticated && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Signup successful! Redirecting...
+            </Alert>
+          )}
+
+          <Stack direction="row" justifyContent="space-between" sx={{ mt: 3 }}>
+            <Link component={RouterLink} to="/" variant="body2">
+              ← Back to Home
+            </Link>
+            <Link component={RouterLink} to="/login" variant="body2">
+              Already have an account? Login
+            </Link>
+          </Stack>
+        </Box>
+      </Paper>
     </Box>
   );
 }

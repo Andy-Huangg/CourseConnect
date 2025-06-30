@@ -6,10 +6,14 @@ import {
   Typography,
   Alert,
   CircularProgress,
+  Link,
+  Stack,
+  Paper,
 } from "@mui/material";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { login } from "./authSlice";
+import ThemeToggle from "../components/ThemeToggle";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -34,50 +38,71 @@ export default function Login() {
   };
 
   return (
-    <Box
-      component="form"
-      onSubmit={handleLogin}
-      sx={{ maxWidth: 400, mx: "auto", mt: 4 }}
-    >
-      <Typography variant="h5" mb={2}>
-        Login
-      </Typography>
-      <TextField
-        label="Username"
-        fullWidth
-        margin="normal"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-        autoComplete="username"
-      />
-      <TextField
-        label="Password"
-        type="password"
-        fullWidth
-        margin="normal"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-        autoComplete="current-password"
-      />
-      <Button
-        type="submit"
-        variant="contained"
-        fullWidth
-        disabled={isLoading}
-        sx={{ mt: 2 }}
-      >
-        {isLoading ? <CircularProgress size={24} /> : "Login"}
-      </Button>
-      {error && (
-        <Alert severity="error" sx={{ mt: 2 }}>
-          {error}
-        </Alert>
-      )}
-      {isAuthenticated && (
-        <Alert severity="success" sx={{ mt: 2 }}>
-          Login successful! Redirecting...
-        </Alert>
-      )}
+    <Box sx={{ maxWidth: 400, mx: "auto", mt: 4 }}>
+      <Paper sx={{ p: 4, borderRadius: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            mb: 2,
+          }}
+        >
+          <Typography variant="h5">Login</Typography>
+        </Box>
+
+        <Box component="form" onSubmit={handleLogin}>
+          <TextField
+            label="Username"
+            fullWidth
+            margin="normal"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+            autoComplete="username"
+          />
+          <TextField
+            label="Password"
+            type="password"
+            fullWidth
+            margin="normal"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            autoComplete="current-password"
+          />
+          <Button
+            type="submit"
+            variant="contained"
+            fullWidth
+            disabled={isLoading}
+            sx={{ mt: 2 }}
+          >
+            {isLoading ? <CircularProgress size={24} /> : "Login"}
+          </Button>
+          {error && (
+            <Alert severity="error" sx={{ mt: 2 }}>
+              {error}
+            </Alert>
+          )}
+          {isAuthenticated && (
+            <Alert severity="success" sx={{ mt: 2 }}>
+              Login successful! Redirecting...
+            </Alert>
+          )}
+
+          <Stack
+            direction="column"
+            justifyContent="space-between"
+            sx={{ mt: 3 }}
+          >
+            <Link component={RouterLink} to="/signup" variant="body2">
+              Don't have an account? Sign up
+            </Link>
+            <Link component={RouterLink} to="/" variant="body2">
+              ← Back to Home
+            </Link>
+          </Stack>
+        </Box>
+      </Paper>
     </Box>
   );
 }
