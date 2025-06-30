@@ -4,6 +4,7 @@ import { createBrowserRouter, RouterProvider } from "react-router";
 import "./index.css";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
+import { ThemeProvider } from "./theme/ThemeProvider";
 import App from "./App.tsx";
 import Signup from "./auth/Signup.tsx";
 import Login from "./auth/Login.tsx";
@@ -44,7 +45,9 @@ if (!rootElement) {
 ReactDOM.createRoot(rootElement).render(
   <StrictMode>
     <Provider store={store}>
-      <RouterProvider router={router} />
+      <ThemeProvider>
+        <RouterProvider router={router} />
+      </ThemeProvider>
     </Provider>
   </StrictMode>
 );

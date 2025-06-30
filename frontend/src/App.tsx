@@ -4,6 +4,7 @@ import { useChatSocket } from "./hooks/useChatSocket";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
+import ThemeToggle from "./components/ThemeToggle";
 
 const COURSES = [
   { id: 1, name: "Global" },
@@ -65,6 +66,7 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
+      <ThemeToggle></ThemeToggle>
       <h1>Vite + React</h1>
       <div className="card">
         <button onClick={() => setCount((count) => count + 1)}>
