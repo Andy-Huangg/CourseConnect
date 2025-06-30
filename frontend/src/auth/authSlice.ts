@@ -14,36 +14,52 @@ interface LoginPayload {
   password: string;
 }
 
+// Helper function to check if token is valid and not expired
+const isTokenValid = (token: string): boolean => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const currentTime = Date.now() / 1000;
+    return payload.exp && payload.exp > currentTime;
+  } catch {
+    return false;
+  }
+};
+
+// Helper function to get user from token
+const getUserFromToken = (token: string): string | null => {
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    return payload.sub || null;
+  } catch {
+    return null;
+  }
+};
+
 // Initial state
+// Better initial state with proper token validation
 const getInitialAuthState = (): AuthState => {
   const token = localStorage.getItem("jwt");
-  let user = null;
-  let isAuthenticated = false;
 
+  if (token && isTokenValid(token)) {
+    const user = getUserFromToken(token);
+    return {
+      user,
+      token,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    };
+  }
+
+  // Remove invalid/expired token
   if (token) {
-    try {
-      // Simple JWT parsing (payload is the second part)
-      const payload = JSON.parse(atob(token.split(".")[1]));
-
-      // Check if token is expired
-      const currentTime = Date.now() / 1000;
-      if (payload.exp && payload.exp > currentTime) {
-        user = payload.sub; // 'sub' claim contains the username
-        isAuthenticated = true;
-      } else {
-        // Token expired, remove it
-        localStorage.removeItem("jwt");
-      }
-    } catch (e) {
-      console.error("Error parsing JWT token", e);
-      localStorage.removeItem("jwt");
-    }
+    localStorage.removeItem("jwt");
   }
 
   return {
-    user,
-    token: isAuthenticated ? token : null,
-    isAuthenticated,
+    user: null,
+    token: null,
+    isAuthenticated: false,
     isLoading: false,
     error: null,
   };
@@ -146,6 +162,24 @@ const authSlice = createSlice({
       state.user = null;
       state.token = null;
       state.isAuthenticated = false;
+      state.error = null;
+    },
+    clearError: (state) => {
+      state.error = null;
+    },
+    // Add action to check token validity
+    checkAuth: (state) => {
+      const token = localStorage.getItem("jwt");
+      if (token && isTokenValid(token)) {
+        state.token = token;
+        state.user = getUserFromToken(token);
+        state.isAuthenticated = true;
+      } else {
+        localStorage.removeItem("jwt");
+        state.token = null;
+        state.user = null;
+        state.isAuthenticated = false;
+      }
     },
   },
   extraReducers: (builder) => {
@@ -158,24 +192,22 @@ const authSlice = createSlice({
       .addCase(login.fulfilled, (state, action) => {
         state.isLoading = false;
         state.isAuthenticated = true;
-        state.user = action.payload.user;
         state.token = action.payload.token;
+        state.user = action.payload.user;
+        state.error = null;
       })
       .addCase(login.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       })
-
       // Signup cases
       .addCase(signup.pending, (state) => {
         state.isLoading = true;
         state.error = null;
       })
-      .addCase(signup.fulfilled, (state, action) => {
+      .addCase(signup.fulfilled, (state) => {
         state.isLoading = false;
-        state.isAuthenticated = true;
-        state.user = action.payload.user;
-        state.token = action.payload.token;
+        state.error = null;
       })
       .addCase(signup.rejected, (state, action) => {
         state.isLoading = false;
@@ -184,6 +216,5 @@ const authSlice = createSlice({
   },
 });
 
-// Export actions and reducer
-export const { logout } = authSlice.actions;
+export const { logout, clearError, checkAuth } = authSlice.actions;
 export default authSlice.reducer;
