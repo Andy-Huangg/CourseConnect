@@ -1,10 +1,59 @@
 import { useEffect, useRef, useState } from "react";
 
-export function useChatSocket(url: string) {
+interface ChatMessage {
+  id: number;
+  senderId: string;
+  content: string;
+  timestamp: string;
+  courseId: number;
+}
+
+export function useChatSocket(url: string, courseId: number) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
+
+  // Function to fetch chat history from API
+  const fetchChatHistory = async (courseId: number) => {
+    setIsLoading(true);
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Chat/${courseId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const chatHistory: ChatMessage[] = await response.json();
+        // Convert chat messages to display format
+        const messageTexts = chatHistory.map(
+          (msg) => `${msg.senderId}: ${msg.content}`
+        );
+        setMessages(messageTexts);
+      } else {
+        console.error("Failed to fetch chat history:", response.statusText);
+        setMessages([]);
+      }
+    } catch (error) {
+      console.error("Error fetching chat history:", error);
+      setMessages([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   useEffect(() => {
+    // Clear messages when course changes
+    setMessages([]);
+
+    // Fetch previous messages for the new course
+    fetchChatHistory(courseId);
+
     // Get token from localStorage
     const token = localStorage.getItem("jwt");
 
@@ -20,13 +69,13 @@ export function useChatSocket(url: string) {
     };
 
     return () => socketRef.current?.close();
-  }, [url]);
+  }, [url, courseId]);
 
   const sendMessage = (message: string) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN) {
-      socketRef.current.send(message);
+    if (socketRef.current?.readyState === WebSocket.OPEN && message.trim()) {
+      socketRef.current.send(message.trim());
     }
   };
 
-  return { messages, sendMessage };
+  return { messages, sendMessage, isLoading };
 }
