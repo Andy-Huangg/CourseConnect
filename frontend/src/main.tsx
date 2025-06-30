@@ -9,17 +9,7 @@ import App from "./App.tsx";
 import Signup from "./auth/Signup.tsx";
 import Login from "./auth/Login.tsx";
 import Dashboard from "./pages/Dashboard.tsx";
-
-const ProtectedRoute = ({ children }: { children: React.ReactNode }) => {
-  // Get auth state from Redux instead of checking localStorage
-  const { isAuthenticated } = store.getState().auth;
-
-  if (!isAuthenticated) {
-    return <Navigate to="/login" replace />;
-  }
-
-  return <>{children}</>;
-};
+import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 const router = createBrowserRouter([
   {

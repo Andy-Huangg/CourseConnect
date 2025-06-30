@@ -15,13 +15,41 @@ interface LoginPayload {
 }
 
 // Initial state
-const initialState: AuthState = {
-  user: null,
-  token: localStorage.getItem("jwt"),
-  isAuthenticated: !!localStorage.getItem("jwt"),
-  isLoading: false,
-  error: null,
+const getInitialAuthState = (): AuthState => {
+  const token = localStorage.getItem("jwt");
+  let user = null;
+  let isAuthenticated = false;
+
+  if (token) {
+    try {
+      // Simple JWT parsing (payload is the second part)
+      const payload = JSON.parse(atob(token.split(".")[1]));
+
+      // Check if token is expired
+      const currentTime = Date.now() / 1000;
+      if (payload.exp && payload.exp > currentTime) {
+        user = payload.sub; // 'sub' claim contains the username
+        isAuthenticated = true;
+      } else {
+        // Token expired, remove it
+        localStorage.removeItem("jwt");
+      }
+    } catch (e) {
+      console.error("Error parsing JWT token", e);
+      localStorage.removeItem("jwt");
+    }
+  }
+
+  return {
+    user,
+    token: isAuthenticated ? token : null,
+    isAuthenticated,
+    isLoading: false,
+    error: null,
+  };
 };
+
+const initialState: AuthState = getInitialAuthState();
 
 // Try to extract username from token
 const token = localStorage.getItem("jwt");
