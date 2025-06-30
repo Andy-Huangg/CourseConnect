@@ -1,4 +1,5 @@
 import { IconButton, Tooltip } from "@mui/material";
+import { DarkMode, LightMode } from "@mui/icons-material";
 import { useTheme } from "../theme/ThemeContext";
 
 export default function ThemeToggle() {
@@ -9,9 +10,12 @@ export default function ThemeToggle() {
       <IconButton
         onClick={toggleTheme}
         color="inherit"
-        sx={{ fontSize: "1.2rem" }}
+        sx={{
+          border: "1px solid",
+          borderRadius: 10, // optional: makes the border rounded
+        }}
       >
-        {mode === "light" ? "🌙" : "☀️"}
+        {mode === "light" ? <DarkMode /> : <LightMode />}
       </IconButton>
     </Tooltip>
   );
