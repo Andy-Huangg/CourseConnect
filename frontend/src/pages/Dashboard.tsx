@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { logout } from "../auth/authSlice";
 import ThemeToggle from "../components/ThemeToggle";
+import Chat from "../components/Chat";
 
 export default function Dashboard() {
   const navigate = useNavigate();
@@ -37,6 +38,9 @@ export default function Dashboard() {
           Sign Out
         </Button>
       </Paper>
+      <Box sx={{ mt: 4 }}>
+        <Chat wsBase={import.meta.env.VITE_WS_URL} />
+      </Box>
     </Box>
   );
 }
