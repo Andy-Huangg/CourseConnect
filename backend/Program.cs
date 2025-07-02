@@ -34,7 +34,6 @@ namespace backend
                     options.UseSqlServer(connectionString));
             }
 
-            builder.Services.AddScoped<IStudentRepository, StudentRepository>();
             builder.Services.AddScoped<IChatRepository, ChatRepository>();
 
 
