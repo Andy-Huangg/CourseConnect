@@ -17,7 +17,7 @@ export default function Chat({ wsBase }: ChatProps) {
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const wsUrl = `${wsBase}?courseId=${selectedCourse}`;
-  const { messages, sendMessage, isLoading } = useChatSocket(
+  const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
     wsUrl,
     selectedCourse
   );
@@ -43,7 +43,28 @@ export default function Chat({ wsBase }: ChatProps) {
 
   return (
     <div style={{ maxWidth: "600px", margin: "20px auto" }}>
-      <h2>Chat</h2>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: "10px",
+        }}
+      >
+        <h2 style={{ margin: 0 }}>Chat</h2>
+        <div
+          style={{
+            backgroundColor: "#e3f2fd",
+            padding: "4px 12px",
+            borderRadius: "16px",
+            fontSize: "14px",
+            color: "#1976d2",
+            fontWeight: "500",
+          }}
+        >
+          {connectedUsers} {connectedUsers === 1 ? "user" : "users"} online
+        </div>
+      </div>
       <label style={{ display: "block", marginBottom: "10px" }}>
         Select Course:{" "}
         <select

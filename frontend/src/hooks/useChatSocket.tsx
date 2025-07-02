@@ -12,6 +12,7 @@ export function useChatSocket(url: string, courseId: number) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [connectedUsers, setConnectedUsers] = useState<number>(0);
 
   // Function to fetch chat history from API
   const fetchChatHistory = async (courseId: number) => {
@@ -50,6 +51,7 @@ export function useChatSocket(url: string, courseId: number) {
   useEffect(() => {
     // Clear messages when course changes
     setMessages([]);
+    setConnectedUsers(0);
 
     // Fetch previous messages for the new course
     fetchChatHistory(courseId);
@@ -65,10 +67,28 @@ export function useChatSocket(url: string, courseId: number) {
     socketRef.current = new WebSocket(urlWithToken);
 
     socketRef.current.onmessage = (event) => {
-      setMessages((prev) => [...prev, event.data]);
+      const data = event.data;
+
+      if (data.startsWith("USER_COUNT:")) {
+        const count = parseInt(data.replace("USER_COUNT:", ""));
+        setConnectedUsers(count);
+      } else if (data.startsWith("MESSAGE:")) {
+        const message = data.replace("MESSAGE:", "");
+        setMessages((prev) => [...prev, message]);
+      } else {
+        // Fallback for old format messages
+        setMessages((prev) => [...prev, data]);
+      }
     };
 
-    return () => socketRef.current?.close();
+    return () => {
+      if (
+        socketRef.current &&
+        socketRef.current.readyState === WebSocket.OPEN
+      ) {
+        socketRef.current.close();
+      }
+    };
   }, [url, courseId]);
 
   const sendMessage = (message: string) => {
@@ -77,5 +97,5 @@ export function useChatSocket(url: string, courseId: number) {
     }
   };
 
-  return { messages, sendMessage, isLoading };
+  return { messages, sendMessage, isLoading, connectedUsers };
 }
