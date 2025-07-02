@@ -9,9 +9,10 @@ const COURSES = [
 
 interface ChatProps {
   wsBase: string;
+  isAnonymous: boolean;
 }
 
-export default function Chat({ wsBase }: ChatProps) {
+export default function Chat({ wsBase, isAnonymous }: ChatProps) {
   const [input, setInput] = useState("");
   const [selectedCourse, setSelectedCourse] = useState(COURSES[0].id);
   const chatContainerRef = useRef<HTMLDivElement>(null);
@@ -31,7 +32,7 @@ export default function Chat({ wsBase }: ChatProps) {
 
   const handleSendMessage = () => {
     if (input.trim()) {
-      sendMessage(input);
+      sendMessage(input, isAnonymous);
       setInput("");
     }
   };
