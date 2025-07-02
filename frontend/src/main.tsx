@@ -8,7 +8,7 @@ import { ThemeProvider } from "./theme/ThemeProvider";
 import App from "./App.tsx";
 import Signup from "./auth/Signup.tsx";
 import Login from "./auth/Login.tsx";
-import Dashboard from "./pages/Dashboard.tsx";
+import Home from "./pages/Home.tsx";
 import ProtectedRoute from "./components/ProtectedRoute.tsx";
 
 const router = createBrowserRouter([
@@ -25,10 +25,10 @@ const router = createBrowserRouter([
     element: <Login />,
   },
   {
-    path: "/dashboard",
+    path: "/home",
     element: (
       <ProtectedRoute>
-        <Dashboard />
+        <Home />
       </ProtectedRoute>
     ),
   },

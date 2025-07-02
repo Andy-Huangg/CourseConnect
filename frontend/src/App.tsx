@@ -18,7 +18,7 @@ function App() {
 
   const handleGetStarted = () => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/home");
     } else {
       navigate("/signup");
     }
@@ -98,11 +98,11 @@ function App() {
           {isAuthenticated ? (
             <Button
               component={Link}
-              to="/dashboard"
+              to="/home"
               variant="contained"
               size="medium"
             >
-              Dashboard
+              Home
             </Button>
           ) : (
             <>
@@ -297,7 +297,7 @@ function App() {
               "&:hover": { bgcolor: "grey.100" },
             }}
           >
-            {isAuthenticated ? "Go to Dashboard" : "Sign Up Now"}
+            {isAuthenticated ? "Go to Home" : "Sign Up Now"}
           </Button>
         </Paper>
       </Container>

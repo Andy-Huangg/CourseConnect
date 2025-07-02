@@ -26,7 +26,7 @@ export default function Signup() {
   // Redirect if authenticated
   useEffect(() => {
     if (isAuthenticated) {
-      navigate("/dashboard");
+      navigate("/home");
     }
   }, [isAuthenticated, navigate]);
 

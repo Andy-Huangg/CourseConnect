@@ -5,7 +5,7 @@ import { logout } from "../auth/authSlice";
 import ThemeToggle from "../components/ThemeToggle";
 import Chat from "../components/Chat";
 
-export default function Dashboard() {
+export default function Home() {
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
   const { user } = useAppSelector((state) => state.auth);
@@ -16,7 +16,7 @@ export default function Dashboard() {
   };
 
   return (
-    <Box sx={{ maxWidth: 600, mx: "auto", mt: 8, p: 3 }}>
+    <Box sx={{ maxWidth: 600, mx: "auto", p: 3 }}>
       <Paper sx={{ p: 4, textAlign: "center" }}>
         <Box
           sx={{
@@ -26,7 +26,7 @@ export default function Dashboard() {
             mb: 2,
           }}
         >
-          <Typography variant="h4">Welcome to the Dashboard</Typography>
+          <Typography variant="h4">Home</Typography>
           <ThemeToggle />
         </Box>
 
