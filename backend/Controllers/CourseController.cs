@@ -50,7 +50,11 @@ namespace backend.Controllers
             if (await _courseRepo.CourseExistsAsync(request.Name))
             {
                 var existingCourse = await _courseRepo.GetByNameAsync(request.Name);
-                return Ok(existingCourse); // Return existing course instead of error
+                return Conflict(new
+                {
+                    message = $"Course '{existingCourse?.Name}' already exists",
+                    existingCourse = existingCourse
+                });
             }
 
             var course = await _courseRepo.CreateCourseAsync(request.Name);

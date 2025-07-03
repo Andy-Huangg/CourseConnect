@@ -16,6 +16,9 @@ export default function Chat({ wsBase }: ChatProps) {
   const [courses, setCourses] = useState<Course[]>([]);
   const [newCourseName, setNewCourseName] = useState("");
   const [showCreateCourse, setShowCreateCourse] = useState(false);
+  const [createCourseError, setCreateCourseError] = useState<string | null>(
+    null
+  );
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   const wsUrl = selectedCourse ? `${wsBase}?courseId=${selectedCourse}` : null;
@@ -80,6 +83,24 @@ export default function Chat({ wsBase }: ChatProps) {
   const handleCreateCourse = async () => {
     if (!newCourseName.trim()) return;
 
+    // Clear any previous errors
+    setCreateCourseError(null);
+
+    // Check if course already exists locally (case and space insensitive)
+    const normalizedNewName = newCourseName
+      .trim()
+      .toLowerCase()
+      .replace(/\s+/g, "");
+    const existingCourse = courses.find(
+      (course) =>
+        course.name.toLowerCase().replace(/\s+/g, "") === normalizedNewName
+    );
+
+    if (existingCourse) {
+      setCreateCourseError(`Course "${existingCourse.name}" already exists!`);
+      return;
+    }
+
     try {
       const token = localStorage.getItem("jwt");
       const response = await fetch(
@@ -100,11 +121,17 @@ export default function Chat({ wsBase }: ChatProps) {
         setSelectedCourse(newCourse.id);
         setNewCourseName("");
         setShowCreateCourse(false);
+      } else if (response.status === 409) {
+        // Handle duplicate course conflict
+        const errorData = await response.json();
+        setCreateCourseError(errorData.message || "Course already exists!");
       } else {
-        console.error("Failed to create course:", response.statusText);
+        const errorText = await response.text();
+        setCreateCourseError(`Failed to create course: ${errorText}`);
       }
     } catch (error) {
       console.error("Error creating course:", error);
+      setCreateCourseError("Error creating course. Please try again.");
     }
   };
 
@@ -156,7 +183,11 @@ export default function Chat({ wsBase }: ChatProps) {
         </label>
 
         <button
-          onClick={() => setShowCreateCourse(!showCreateCourse)}
+          onClick={() => {
+            setShowCreateCourse(!showCreateCourse);
+            // Clear error when toggling the form
+            if (createCourseError) setCreateCourseError(null);
+          }}
           style={{
             padding: "5px 10px",
             backgroundColor: "#007acc",
@@ -172,32 +203,53 @@ export default function Chat({ wsBase }: ChatProps) {
       </div>
 
       {showCreateCourse && (
-        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
-          <input
-            value={newCourseName}
-            onChange={(e) => setNewCourseName(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleCreateCourse()}
-            style={{
-              flex: 1,
-              padding: "5px",
-              border: "1px solid #ccc",
-              borderRadius: "3px",
-            }}
-            placeholder="Enter course name (e.g., CS150, Web Dev)..."
-          />
-          <button
-            onClick={handleCreateCourse}
-            style={{
-              padding: "5px 10px",
-              backgroundColor: "#28a745",
-              color: "white",
-              border: "none",
-              borderRadius: "3px",
-              cursor: "pointer",
-            }}
-          >
-            Create
-          </button>
+        <div style={{ marginBottom: "10px" }}>
+          <div style={{ display: "flex", gap: "10px", marginBottom: "5px" }}>
+            <input
+              value={newCourseName}
+              onChange={(e) => {
+                setNewCourseName(e.target.value);
+                // Clear error when user starts typing
+                if (createCourseError) setCreateCourseError(null);
+              }}
+              onKeyDown={(e) => e.key === "Enter" && handleCreateCourse()}
+              style={{
+                flex: 1,
+                padding: "5px",
+                border: "1px solid #ccc",
+                borderRadius: "3px",
+              }}
+              placeholder="Enter course name (e.g., CS150, Web Dev)..."
+            />
+            <button
+              onClick={handleCreateCourse}
+              style={{
+                padding: "5px 10px",
+                backgroundColor: "#28a745",
+                color: "white",
+                border: "none",
+                borderRadius: "3px",
+                cursor: "pointer",
+              }}
+            >
+              Create
+            </button>
+          </div>
+          {createCourseError && (
+            <div
+              style={{
+                color: "#dc3545",
+                fontSize: "14px",
+                backgroundColor: "#f8d7da",
+                border: "1px solid #f5c6cb",
+                borderRadius: "3px",
+                padding: "8px",
+                marginTop: "5px",
+              }}
+            >
+              {createCourseError}
+            </div>
+          )}
         </div>
       )}
       <div
