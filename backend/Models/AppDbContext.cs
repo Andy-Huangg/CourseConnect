@@ -28,6 +28,11 @@ namespace backend.Models
                 .HasMany(u => u.Courses)
                 .WithMany(c => c.Users)
                 .UsingEntity(j => j.ToTable("UserCourses"));
+
+            // Add unique constraint for course names (case-insensitive)
+            modelBuilder.Entity<Course>()
+                .HasIndex(c => c.Name)
+                .IsUnique();
         }
     }
 }

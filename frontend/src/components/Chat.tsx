@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect } from "react";
 import { useChatSocket } from "../hooks/useChatSocket";
 
-const COURSES = [
-  { id: 1, name: "Global" },
-  { id: 2, name: "Test1" },
-  { id: 3, name: "Test2" },
-];
+interface Course {
+  id: number;
+  name: string;
+}
 
 interface ChatProps {
   wsBase: string;
@@ -13,14 +12,51 @@ interface ChatProps {
 
 export default function Chat({ wsBase }: ChatProps) {
   const [input, setInput] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState(COURSES[0].id);
+  const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [courses, setCourses] = useState<Course[]>([]);
+  const [newCourseName, setNewCourseName] = useState("");
+  const [showCreateCourse, setShowCreateCourse] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
-  const wsUrl = `${wsBase}?courseId=${selectedCourse}`;
+  const wsUrl = selectedCourse ? `${wsBase}?courseId=${selectedCourse}` : null;
   const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
     wsUrl,
     selectedCourse
   );
+
+  // Fetch courses from API
+  useEffect(() => {
+    const fetchCourses = async () => {
+      try {
+        const token = localStorage.getItem("jwt");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/Course`,
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const coursesData: Course[] = await response.json();
+          setCourses(coursesData);
+
+          // Set default course if none selected
+          if (!selectedCourse && coursesData.length > 0) {
+            setSelectedCourse(coursesData[0].id);
+          }
+        } else {
+          console.error("Failed to fetch courses:", response.statusText);
+        }
+      } catch (error) {
+        console.error("Error fetching courses:", error);
+      }
+    };
+
+    fetchCourses();
+  }, [selectedCourse]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -39,6 +75,37 @@ export default function Chat({ wsBase }: ChatProps) {
   const handleCourseChange = (courseId: number) => {
     setSelectedCourse(courseId);
     setInput("");
+  };
+
+  const handleCreateCourse = async () => {
+    if (!newCourseName.trim()) return;
+
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Course`,
+        {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ name: newCourseName.trim() }),
+        }
+      );
+
+      if (response.ok) {
+        const newCourse: Course = await response.json();
+        setCourses((prev) => [...prev, newCourse]);
+        setSelectedCourse(newCourse.id);
+        setNewCourseName("");
+        setShowCreateCourse(false);
+      } else {
+        console.error("Failed to create course:", response.statusText);
+      }
+    } catch (error) {
+      console.error("Error creating course:", error);
+    }
   };
 
   return (
@@ -65,20 +132,74 @@ export default function Chat({ wsBase }: ChatProps) {
           {connectedUsers} {connectedUsers === 1 ? "user" : "users"} online
         </div>
       </div>
-      <label style={{ display: "block", marginBottom: "10px" }}>
-        Select Course:{" "}
-        <select
-          value={selectedCourse}
-          onChange={(e) => handleCourseChange(Number(e.target.value))}
-          style={{ marginLeft: "10px", padding: "5px" }}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "10px",
+          marginBottom: "10px",
+        }}
+      >
+        <label>
+          Select Course:{" "}
+          <select
+            value={selectedCourse || ""}
+            onChange={(e) => handleCourseChange(Number(e.target.value))}
+            style={{ marginLeft: "10px", padding: "5px" }}
+          >
+            {courses.map((course) => (
+              <option key={course.id} value={course.id}>
+                {course.name}
+              </option>
+            ))}
+          </select>
+        </label>
+
+        <button
+          onClick={() => setShowCreateCourse(!showCreateCourse)}
+          style={{
+            padding: "5px 10px",
+            backgroundColor: "#007acc",
+            color: "white",
+            border: "none",
+            borderRadius: "3px",
+            cursor: "pointer",
+            fontSize: "12px",
+          }}
         >
-          {COURSES.map((course) => (
-            <option key={course.id} value={course.id}>
-              {course.name}
-            </option>
-          ))}
-        </select>
-      </label>
+          {showCreateCourse ? "Cancel" : "Create Course"}
+        </button>
+      </div>
+
+      {showCreateCourse && (
+        <div style={{ display: "flex", gap: "10px", marginBottom: "10px" }}>
+          <input
+            value={newCourseName}
+            onChange={(e) => setNewCourseName(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleCreateCourse()}
+            style={{
+              flex: 1,
+              padding: "5px",
+              border: "1px solid #ccc",
+              borderRadius: "3px",
+            }}
+            placeholder="Enter course name (e.g., CS150, Web Dev)..."
+          />
+          <button
+            onClick={handleCreateCourse}
+            style={{
+              padding: "5px 10px",
+              backgroundColor: "#28a745",
+              color: "white",
+              border: "none",
+              borderRadius: "3px",
+              cursor: "pointer",
+            }}
+          >
+            Create
+          </button>
+        </div>
+      )}
       <div
         ref={chatContainerRef}
         style={{

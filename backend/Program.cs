@@ -35,12 +35,19 @@ namespace backend
             }
 
             builder.Services.AddScoped<IChatRepository, ChatRepository>();
+            builder.Services.AddScoped<ICourseRepository, CourseRepository>();
+            builder.Services.AddScoped<IUserRepository, UserRepository>();
 
 
             // Configure JWT Auth
             var jwtKey = builder.Configuration["Jwt:Key"];
             var jwtIssuer = builder.Configuration["Jwt:Issuer"];
             var jwtAudience = builder.Configuration["Jwt:Audience"];
+
+            if (string.IsNullOrEmpty(jwtKey) || string.IsNullOrEmpty(jwtIssuer) || string.IsNullOrEmpty(jwtAudience))
+            {
+                throw new InvalidOperationException("JWT configuration is missing or incomplete");
+            }
 
             builder.Services.AddAuthentication(options =>
             {

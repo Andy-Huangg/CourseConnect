@@ -8,7 +8,7 @@ interface ChatMessage {
   courseId: number;
 }
 
-export function useChatSocket(url: string, courseId: number) {
+export function useChatSocket(url: string | null, courseId: number | null) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +52,11 @@ export function useChatSocket(url: string, courseId: number) {
     // Clear messages when course changes
     setMessages([]);
     setConnectedUsers(0);
+
+    // Don't connect if no course is selected or no URL
+    if (!courseId || !url) {
+      return;
+    }
 
     // Fetch previous messages for the new course
     fetchChatHistory(courseId);
