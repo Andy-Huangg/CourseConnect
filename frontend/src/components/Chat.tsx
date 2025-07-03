@@ -32,7 +32,7 @@ export default function Chat({ wsBase, isAnonymous }: ChatProps) {
 
   const handleSendMessage = () => {
     if (input.trim()) {
-      sendMessage(input, isAnonymous);
+      sendMessage(input);
       setInput("");
     }
   };

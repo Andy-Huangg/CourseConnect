@@ -11,7 +11,7 @@ import {
 } from "@mui/material";
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
-import { signup } from "./authSlice";
+import { signup, clearError } from "./authSlice";
 
 export default function Signup() {
   const [username, setUsername] = useState("");
@@ -29,6 +29,11 @@ export default function Signup() {
       navigate("/home");
     }
   }, [isAuthenticated, navigate]);
+
+  // Clear any existing error when component mounts
+  useEffect(() => {
+    dispatch(clearError());
+  }, [dispatch]);
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
