@@ -9,10 +9,9 @@ const COURSES = [
 
 interface ChatProps {
   wsBase: string;
-  isAnonymous: boolean;
 }
 
-export default function Chat({ wsBase, isAnonymous }: ChatProps) {
+export default function Chat({ wsBase }: ChatProps) {
   const [input, setInput] = useState("");
   const [selectedCourse, setSelectedCourse] = useState(COURSES[0].id);
   const chatContainerRef = useRef<HTMLDivElement>(null);

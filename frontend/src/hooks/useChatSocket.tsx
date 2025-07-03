@@ -56,6 +56,17 @@ export function useChatSocket(url: string, courseId: number) {
     // Fetch previous messages for the new course
     fetchChatHistory(courseId);
 
+    // Close existing WebSocket connection if it exists
+    if (socketRef.current) {
+      if (
+        socketRef.current.readyState === WebSocket.OPEN ||
+        socketRef.current.readyState === WebSocket.CONNECTING
+      ) {
+        socketRef.current.close();
+      }
+      socketRef.current = null;
+    }
+
     // Get token from localStorage
     const token = localStorage.getItem("jwt");
 
@@ -84,10 +95,12 @@ export function useChatSocket(url: string, courseId: number) {
     return () => {
       if (
         socketRef.current &&
-        socketRef.current.readyState === WebSocket.OPEN
+        (socketRef.current.readyState === WebSocket.OPEN ||
+          socketRef.current.readyState === WebSocket.CONNECTING)
       ) {
         socketRef.current.close();
       }
+      socketRef.current = null;
     };
   }, [url, courseId]);
 

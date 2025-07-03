@@ -13,9 +13,14 @@ namespace backend.WebSockets
     {
         private static readonly Dictionary<int, List<WebSocket>> _courseClients = new();
         private static readonly Dictionary<int, HashSet<int>> _courseUsers = new();
+        // Track which websocket belongs to which user for better cleanup
+        private static readonly Dictionary<WebSocket, (int courseId, int userId)> _socketUserMap = new();
 
         private static async Task BroadcastUserCount(int courseId)
         {
+            // Clean up disconnected clients before getting count
+            CleanupClosedConnections(courseId);
+
             var userCount = _courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0;
             Console.WriteLine($"Broadcasting user count for course {courseId}: {userCount} users");
             var userCountMessage = $"USER_COUNT:{userCount}";
@@ -23,8 +28,10 @@ namespace backend.WebSockets
 
             if (_courseClients.ContainsKey(courseId))
             {
-                Console.WriteLine($"Sending to {_courseClients[courseId].Count} clients");
-                foreach (var client in _courseClients[courseId].Where(c => c.State == WebSocketState.Open))
+                var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
+
+                Console.WriteLine($"Sending to {openClients.Count} clients");
+                foreach (var client in openClients)
                 {
                     try
                     {
@@ -121,8 +128,32 @@ namespace backend.WebSockets
             if (!_courseUsers.ContainsKey(courseId.Value))
                 _courseUsers[courseId.Value] = new HashSet<int>();
 
+            // Clean up any closed connections for this course before adding new one
+            CleanupClosedConnections(courseId.Value);
+
+            // Debug logging for courseId 1 (Global)
+            if (courseId.Value == 1)
+            {
+                Console.WriteLine($"[DEBUG] Global course - Before adding user {userId}:");
+                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId.Value].Count}");
+                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId.Value])}");
+                Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+            }
+
             _courseClients[courseId.Value].Add(webSocket);
             _courseUsers[courseId.Value].Add(userId.Value);
+
+            // Track this websocket-user relationship
+            _socketUserMap[webSocket] = (courseId.Value, userId.Value);
+
+            // More debug logging for courseId 1
+            if (courseId.Value == 1)
+            {
+                Console.WriteLine($"[DEBUG] Global course - After adding user {userId}:");
+                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId.Value].Count}");
+                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId.Value])}");
+                Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+            }
 
             Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId.Value].Count} users");
 
@@ -178,10 +209,55 @@ namespace backend.WebSockets
             {
                 // Clean up when connection closes
                 Console.WriteLine($"User {userId} disconnecting from course {courseId}");
-                _courseClients[courseId.Value].Remove(webSocket);
-                _courseUsers[courseId.Value].Remove(userId.Value);
 
-                Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId.Value].Count} users after disconnect");
+                // Debug logging for courseId 1 (Global)
+                if (courseId.Value == 1)
+                {
+                    Console.WriteLine($"[DEBUG] Global course - Before cleanup for user {userId}:");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId.Value) ? _courseClients[courseId.Value].Count : 0)}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId.Value) ? string.Join(", ", _courseUsers[courseId.Value]) : "none")}");
+                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                }
+
+                if (_courseClients.ContainsKey(courseId.Value))
+                {
+                    _courseClients[courseId.Value].Remove(webSocket);
+                }
+
+                // Remove from socket-user mapping and check if user should be removed
+                if (_socketUserMap.TryGetValue(webSocket, out var userInfo))
+                {
+                    var (socketCourseId, socketUserId) = userInfo;
+                    _socketUserMap.Remove(webSocket);
+
+                    // Only remove user from course if they don't have any other open connections to this course
+                    var userHasOtherConnections = _courseClients.ContainsKey(courseId.Value) &&
+                        _courseClients[courseId.Value]
+                            .Any(ws => _socketUserMap.TryGetValue(ws, out var info) &&
+                                      info.userId == socketUserId && ws.State == WebSocketState.Open);
+
+                    if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId.Value))
+                    {
+                        _courseUsers[courseId.Value].Remove(socketUserId);
+                    }
+
+                    // Debug logging for courseId 1
+                    if (courseId.Value == 1)
+                    {
+                        Console.WriteLine($"[DEBUG] Global course - User {socketUserId} other connections: {userHasOtherConnections}");
+                    }
+                }
+
+                // More debug logging for courseId 1
+                if (courseId.Value == 1)
+                {
+                    Console.WriteLine($"[DEBUG] Global course - After cleanup for user {userId}:");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId.Value) ? _courseClients[courseId.Value].Count : 0)}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId.Value) ? string.Join(", ", _courseUsers[courseId.Value]) : "none")}");
+                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                }
+
+                Console.WriteLine($"Course {courseId} now has {(_courseUsers.ContainsKey(courseId.Value) ? _courseUsers[courseId.Value].Count : 0)} users after disconnect");
 
                 // Broadcast updated user count
                 await BroadcastUserCount(courseId.Value);
@@ -203,6 +279,40 @@ namespace backend.WebSockets
             }
 
             return null;
+        }
+
+        private static void CleanupClosedConnections(int courseId)
+        {
+            if (!_courseClients.ContainsKey(courseId))
+                return;
+
+            var closedSockets = _courseClients[courseId]
+                .Where(ws => ws.State != WebSocketState.Open)
+                .ToList();
+
+            foreach (var closedSocket in closedSockets)
+            {
+                _courseClients[courseId].Remove(closedSocket);
+
+                // Remove user from course users if this was their socket
+                if (_socketUserMap.TryGetValue(closedSocket, out var userInfo))
+                {
+                    var (socketCourseId, userId) = userInfo;
+                    if (socketCourseId == courseId)
+                    {
+                        // Only remove user if they don't have any other open connections to this course
+                        var userHasOtherConnections = _courseClients[courseId]
+                            .Any(ws => _socketUserMap.TryGetValue(ws, out var info) &&
+                                      info.userId == userId && ws.State == WebSocketState.Open);
+
+                        if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId))
+                        {
+                            _courseUsers[courseId].Remove(userId);
+                        }
+                    }
+                    _socketUserMap.Remove(closedSocket);
+                }
+            }
         }
     }
 }
