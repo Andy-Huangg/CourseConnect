@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -14,8 +14,8 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
-} from '@mui/material';
-import { Check, Add, Remove, School } from '@mui/icons-material';
+} from "@mui/material";
+import { Check, Add, Remove, School } from "@mui/icons-material";
 
 interface Course {
   id: number;
@@ -29,16 +29,18 @@ interface EnrollmentStatus {
 export default function CourseEnrollment() {
   const [allCourses, setAllCourses] = useState<Course[]>([]);
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
-  const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus>({});
+  const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus>(
+    {}
+  );
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  const [newCourseName, setNewCourseName] = useState('');
+  const [newCourseName, setNewCourseName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
 
   const apiUrl = import.meta.env.VITE_API_URL;
-  const token = localStorage.getItem('jwt');
+  const token = localStorage.getItem("jwt");
 
   const fetchCoursesAndEnrollments = useCallback(async () => {
     try {
@@ -49,12 +51,12 @@ export default function CourseEnrollment() {
       const coursesResponse = await fetch(`${apiUrl}/api/Course`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!coursesResponse.ok) {
-        throw new Error('Failed to fetch courses');
+        throw new Error("Failed to fetch courses");
       }
 
       const coursesData: Course[] = await coursesResponse.json();
@@ -64,12 +66,12 @@ export default function CourseEnrollment() {
       const enrolledResponse = await fetch(`${apiUrl}/api/Course/my-courses`, {
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!enrolledResponse.ok) {
-        throw new Error('Failed to fetch enrolled courses');
+        throw new Error("Failed to fetch enrolled courses");
       }
 
       const enrolledData: Course[] = await enrolledResponse.json();
@@ -77,14 +79,15 @@ export default function CourseEnrollment() {
 
       // Create enrollment status mapping
       const statusMap: EnrollmentStatus = {};
-      coursesData.forEach(course => {
-        statusMap[course.id] = enrolledData.some(enrolled => enrolled.id === course.id);
+      coursesData.forEach((course) => {
+        statusMap[course.id] = enrolledData.some(
+          (enrolled) => enrolled.id === course.id
+        );
       });
       setEnrollmentStatus(statusMap);
-
     } catch (error) {
-      console.error('Error fetching courses:', error);
-      setError('Failed to load courses. Please try again.');
+      console.error("Error fetching courses:", error);
+      setError("Failed to load courses. Please try again.");
     } finally {
       setLoading(false);
     }
@@ -99,38 +102,43 @@ export default function CourseEnrollment() {
       setActionLoading(courseId);
       setError(null);
 
-      const method = enroll ? 'POST' : 'DELETE';
+      const method = enroll ? "POST" : "DELETE";
       const response = await fetch(`${apiUrl}/api/Course/${courseId}/enroll`, {
         method,
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
       });
 
       if (!response.ok) {
-        throw new Error(`Failed to ${enroll ? 'enroll in' : 'unenroll from'} course`);
+        throw new Error(
+          `Failed to ${enroll ? "enroll in" : "unenroll from"} course`
+        );
       }
 
       // Update enrollment status
-      setEnrollmentStatus(prev => ({
+      setEnrollmentStatus((prev) => ({
         ...prev,
-        [courseId]: enroll
+        [courseId]: enroll,
       }));
 
       // Update enrolled courses list
       if (enroll) {
-        const course = allCourses.find(c => c.id === courseId);
+        const course = allCourses.find((c) => c.id === courseId);
         if (course) {
-          setEnrolledCourses(prev => [...prev, course]);
+          setEnrolledCourses((prev) => [...prev, course]);
         }
       } else {
-        setEnrolledCourses(prev => prev.filter(c => c.id !== courseId));
+        setEnrolledCourses((prev) => prev.filter((c) => c.id !== courseId));
       }
-
     } catch (error) {
-      console.error('Error updating enrollment:', error);
-      setError(`Failed to ${enroll ? 'enroll in' : 'unenroll from'} course. Please try again.`);
+      console.error("Error updating enrollment:", error);
+      setError(
+        `Failed to ${
+          enroll ? "enroll in" : "unenroll from"
+        } course. Please try again.`
+      );
     } finally {
       setActionLoading(null);
     }
@@ -144,36 +152,35 @@ export default function CourseEnrollment() {
       setError(null);
 
       const response = await fetch(`${apiUrl}/api/Course`, {
-        method: 'POST',
+        method: "POST",
         headers: {
           Authorization: `Bearer ${token}`,
-          'Content-Type': 'application/json',
+          "Content-Type": "application/json",
         },
         body: JSON.stringify({ name: newCourseName.trim() }),
       });
 
       if (response.ok) {
         const newCourse: Course = await response.json();
-        
+
         // Add to all courses list
-        setAllCourses(prev => [...prev, newCourse]);
-        
+        setAllCourses((prev) => [...prev, newCourse]);
+
         // Auto-enroll in the new course
         await handleEnrollment(newCourse.id, true);
-        
+
         // Close dialog and reset form
         setCreateDialogOpen(false);
-        setNewCourseName('');
-        
+        setNewCourseName("");
       } else if (response.status === 409) {
         const errorData = await response.json();
-        setError(errorData.message || 'Course already exists!');
+        setError(errorData.message || "Course already exists!");
       } else {
-        throw new Error('Failed to create course');
+        throw new Error("Failed to create course");
       }
     } catch (error) {
-      console.error('Error creating course:', error);
-      setError('Failed to create course. Please try again.');
+      console.error("Error creating course:", error);
+      setError("Failed to create course. Please try again.");
     } finally {
       setCreateLoading(false);
     }
@@ -181,18 +188,23 @@ export default function CourseEnrollment() {
 
   if (loading) {
     return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', p: 4 }}>
+      <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
       </Box>
     );
   }
 
   return (
-    <Box sx={{ maxWidth: 800, mx: 'auto', p: 3 }}>
-      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
-        <Typography variant="h4">
-          Course Enrollment
-        </Typography>
+    <Box sx={{ maxWidth: 800, mx: "auto", p: 3 }}>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography variant="h4">Course Enrollment</Typography>
         <Button
           variant="contained"
           startIcon={<School />}
@@ -219,14 +231,14 @@ export default function CourseEnrollment() {
               You are not enrolled in any courses yet.
             </Typography>
           ) : (
-            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 1 }}>
-              {enrolledCourses.map(course => (
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+              {enrolledCourses.map((course) => (
                 <Chip
                   key={course.id}
                   label={course.name}
                   color="primary"
                   icon={<Check />}
-                  sx={{ fontSize: '0.9rem' }}
+                  sx={{ fontSize: "0.9rem" }}
                 />
               ))}
             </Box>
@@ -243,28 +255,28 @@ export default function CourseEnrollment() {
 
       <Box
         sx={{
-          display: 'grid',
+          display: "grid",
           gridTemplateColumns: {
-            xs: '1fr',
-            sm: '1fr 1fr',
-            md: '1fr 1fr 1fr',
+            xs: "1fr",
+            sm: "1fr 1fr",
+            md: "1fr 1fr 1fr",
           },
           gap: 2,
         }}
       >
-        {allCourses.map(course => {
+        {allCourses.map((course) => {
           const isEnrolled = enrollmentStatus[course.id];
           const isLoading = actionLoading === course.id;
 
           return (
-            <Card 
+            <Card
               key={course.id}
-              sx={{ 
-                height: '100%', 
-                display: 'flex', 
-                flexDirection: 'column',
-                border: isEnrolled ? '2px solid' : '1px solid',
-                borderColor: isEnrolled ? 'primary.main' : 'divider',
+              sx={{
+                height: "100%",
+                display: "flex",
+                flexDirection: "column",
+                border: isEnrolled ? "2px solid" : "1px solid",
+                borderColor: isEnrolled ? "primary.main" : "divider",
               }}
             >
               <CardContent sx={{ flexGrow: 1 }}>
@@ -298,11 +310,10 @@ export default function CourseEnrollment() {
                   }
                 >
                   {isLoading
-                    ? 'Loading...'
+                    ? "Loading..."
                     : isEnrolled
-                    ? 'Unenroll'
-                    : 'Enroll'
-                  }
+                    ? "Unenroll"
+                    : "Enroll"}
                 </Button>
               </Box>
             </Card>
@@ -311,13 +322,16 @@ export default function CourseEnrollment() {
       </Box>
 
       {allCourses.length === 0 && (
-        <Typography color="text.secondary" sx={{ textAlign: 'center', mt: 4 }}>
+        <Typography color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
           No courses available. Create your first course to get started!
         </Typography>
       )}
 
       {/* Create Course Dialog */}
-      <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)}>
+      <Dialog
+        open={createDialogOpen}
+        onClose={() => setCreateDialogOpen(false)}
+      >
         <DialogTitle>Create New Course</DialogTitle>
         <DialogContent>
           <TextField
@@ -334,13 +348,13 @@ export default function CourseEnrollment() {
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setCreateDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleCreateCourse} 
+          <Button
+            onClick={handleCreateCourse}
             variant="contained"
             disabled={!newCourseName.trim() || createLoading}
             startIcon={createLoading ? <CircularProgress size={16} /> : <Add />}
           >
-            {createLoading ? 'Creating...' : 'Create & Enroll'}
+            {createLoading ? "Creating..." : "Create & Enroll"}
           </Button>
         </DialogActions>
       </Dialog>

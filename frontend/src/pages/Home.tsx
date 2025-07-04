@@ -32,7 +32,7 @@ function TabPanel(props: TabPanelProps) {
 function a11yProps(index: number) {
   return {
     id: `simple-tab-${index}`,
-    'aria-controls': `simple-tabpanel-${index}`,
+    "aria-controls": `simple-tabpanel-${index}`,
   };
 }
 
@@ -71,8 +71,12 @@ export default function Home() {
           </Box>
         </Box>
 
-        <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
-          <Tabs value={tabValue} onChange={handleTabChange} aria-label="basic tabs example">
+        <Box sx={{ borderBottom: 1, borderColor: "divider" }}>
+          <Tabs
+            value={tabValue}
+            onChange={handleTabChange}
+            aria-label="basic tabs example"
+          >
             <Tab label="My Courses" {...a11yProps(0)} />
             <Tab label="Chat" {...a11yProps(1)} />
           </Tabs>
