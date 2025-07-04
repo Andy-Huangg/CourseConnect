@@ -123,7 +123,8 @@ namespace backend
                 {
                     using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                     var chatRepo = context.RequestServices.GetRequiredService<IChatRepository>();
-                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo);
+                    var courseRepo = context.RequestServices.GetRequiredService<ICourseRepository>();
+                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo, courseRepo);
                 }
                 else
                 {

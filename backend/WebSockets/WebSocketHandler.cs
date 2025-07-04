@@ -100,7 +100,7 @@ namespace backend.WebSockets
             }
         }
 
-        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository)
+        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository)
         {
             var courseId = GetCourseIdFromQuery(context);
             if (courseId == null)
@@ -117,6 +117,16 @@ namespace backend.WebSockets
                 Console.WriteLine("Error: Invalid or missing authentication token");
                 context.Response.StatusCode = 401;
                 await context.Response.WriteAsync("Invalid or missing authentication token");
+                return;
+            }
+
+            // Validate that the user is enrolled in the course
+            var isEnrolled = await courseRepository.IsUserEnrolledAsync(userId.Value, courseId.Value);
+            if (!isEnrolled)
+            {
+                Console.WriteLine($"Error: User {userId} is not enrolled in course {courseId}");
+                context.Response.StatusCode = 403;
+                await context.Response.WriteAsync("Access denied: You must be enrolled in this course to access the chat");
                 return;
             }
 
