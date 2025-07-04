@@ -75,7 +75,9 @@ export default function CourseEnrollment() {
       }
 
       const enrolledData: Course[] = await enrolledResponse.json();
-      setEnrolledCourses(enrolledData);
+      // Filter out Global course (courseId = 1) from enrolled courses display
+      const filteredEnrolledData = enrolledData.filter(course => course.id !== 1);
+      setEnrolledCourses(filteredEnrolledData);
 
       // Create enrollment status mapping
       const statusMap: EnrollmentStatus = {};
@@ -112,9 +114,8 @@ export default function CourseEnrollment() {
       });
 
       if (!response.ok) {
-        throw new Error(
-          `Failed to ${enroll ? "enroll in" : "unenroll from"} course`
-        );
+        const errorText = await response.text();
+        throw new Error(errorText || `Failed to ${enroll ? "enroll in" : "unenroll from"} course`);
       }
 
       // Update enrollment status
@@ -135,7 +136,7 @@ export default function CourseEnrollment() {
     } catch (error) {
       console.error("Error updating enrollment:", error);
       setError(
-        `Failed to ${
+        error instanceof Error ? error.message : `Failed to ${
           enroll ? "enroll in" : "unenroll from"
         } course. Please try again.`
       );

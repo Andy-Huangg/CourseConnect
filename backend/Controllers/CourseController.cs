@@ -22,7 +22,10 @@ namespace backend.Controllers
         public async Task<IActionResult> GetAllCourses()
         {
             var courses = await _courseRepo.GetAllAsync();
-            var courseDtos = courses.Select(c => new CourseDto { Id = c.Id, Name = c.Name });
+            // Exclude Global course (courseId = 1) from the list since users are automatically enrolled
+            var courseDtos = courses
+                .Where(c => c.Id != 1)
+                .Select(c => new CourseDto { Id = c.Id, Name = c.Name });
             return Ok(courseDtos);
         }
 
@@ -124,6 +127,12 @@ namespace backend.Controllers
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
                 return Unauthorized("Invalid user token");
+            }
+
+            // Prevent unenrolling from the Global course (courseId = 1)
+            if (courseId == 1)
+            {
+                return BadRequest("Cannot unenroll from the Global course.");
             }
 
             var course = await _courseRepo.GetByIdAsync(courseId);

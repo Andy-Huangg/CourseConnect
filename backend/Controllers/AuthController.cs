@@ -4,6 +4,7 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Text;
 using backend.Models;
+using backend.Repositories;
 using Microsoft.EntityFrameworkCore;
 
 namespace backend.Controllers
@@ -14,11 +15,13 @@ namespace backend.Controllers
     {
         private readonly IConfiguration _configuration;
         private readonly AppDbContext _context;
+        private readonly ICourseRepository _courseRepo;
 
-        public AuthController(IConfiguration configuration, AppDbContext context)
+        public AuthController(IConfiguration configuration, AppDbContext context, ICourseRepository courseRepo)
         {
             _configuration = configuration;
             _context = context;
+            _courseRepo = courseRepo;
         }
 
         [HttpPost("register")]
@@ -45,6 +48,18 @@ namespace backend.Controllers
             // Save the user to the database
             _context.User.Add(newUser);
             await _context.SaveChangesAsync();
+
+            // Automatically enroll the user in the Global course (courseId = 1)
+            const int globalCourseId = 1;
+            try
+            {
+                await _courseRepo.EnrollUserAsync(newUser.Id, globalCourseId);
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail registration if Global course enrollment fails
+                Console.WriteLine($"Warning: Failed to auto-enroll user {newUser.Id} in Global course: {ex.Message}");
+            }
 
             var token = GenerateJwtToken(newUser.Id, newUser.Username);
 
