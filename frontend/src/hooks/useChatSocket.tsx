@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 interface ChatMessage {
   id: number;
@@ -8,14 +8,30 @@ interface ChatMessage {
   courseId: number;
 }
 
+// Cache for chat histories to avoid refetching
+const chatHistoryCache = new Map<number, string[]>();
+const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
+const cacheTimestamps = new Map<number, number>();
+
 export function useChatSocket(url: string | null, courseId: number | null) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<number>(0);
+  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectAttemptsRef = useRef(0);
 
-  // Function to fetch chat history from API
-  const fetchChatHistory = async (courseId: number) => {
+  // Function to fetch chat history from API with caching
+  const fetchChatHistory = useCallback(async (courseId: number) => {
+    // Check cache first
+    const cachedHistory = chatHistoryCache.get(courseId);
+    const cacheTime = cacheTimestamps.get(courseId);
+
+    if (cachedHistory && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
+      setMessages(cachedHistory);
+      return;
+    }
+
     setIsLoading(true);
     try {
       const token = localStorage.getItem("jwt");
@@ -35,6 +51,11 @@ export function useChatSocket(url: string | null, courseId: number | null) {
         const messageTexts = chatHistory.map(
           (msg) => `${msg.senderId}: ${msg.content}`
         );
+
+        // Cache the results
+        chatHistoryCache.set(courseId, messageTexts);
+        cacheTimestamps.set(courseId, Date.now());
+
         setMessages(messageTexts);
       } else {
         console.error("Failed to fetch chat history:", response.statusText);
@@ -46,41 +67,27 @@ export function useChatSocket(url: string | null, courseId: number | null) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
-  useEffect(() => {
-    // Clear messages when course changes
-    setMessages([]);
-    setConnectedUsers(0);
+  // WebSocket connection with auto-reconnect
+  const connectWebSocket = useCallback(() => {
+    if (!courseId || !url) return;
 
-    // Don't connect if no course is selected or no URL
-    if (!courseId || !url) {
-      return;
-    }
-
-    // Fetch previous messages for the new course
-    fetchChatHistory(courseId);
-
-    // Close existing WebSocket connection if it exists
+    // Close existing connection
     if (socketRef.current) {
-      if (
-        socketRef.current.readyState === WebSocket.OPEN ||
-        socketRef.current.readyState === WebSocket.CONNECTING
-      ) {
-        socketRef.current.close();
-      }
-      socketRef.current = null;
+      socketRef.current.close();
     }
 
-    // Get token from localStorage
     const token = localStorage.getItem("jwt");
-
-    // Ensure URL has token parameter
     const urlWithToken = url.includes("token=")
       ? url
       : `${url}${url.includes("?") ? "&" : "?"}token=${token}`;
 
     socketRef.current = new WebSocket(urlWithToken);
+
+    socketRef.current.onopen = () => {
+      reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
+    };
 
     socketRef.current.onmessage = (event) => {
       const data = event.data;
@@ -90,30 +97,82 @@ export function useChatSocket(url: string | null, courseId: number | null) {
         setConnectedUsers(count);
       } else if (data.startsWith("MESSAGE:")) {
         const message = data.replace("MESSAGE:", "");
-        setMessages((prev) => [...prev, message]);
+        setMessages((prev) => {
+          const newMessages = [...prev, message];
+          // Update cache with new message
+          if (courseId) {
+            chatHistoryCache.set(courseId, newMessages);
+            cacheTimestamps.set(courseId, Date.now());
+          }
+          return newMessages;
+        });
       } else {
         // Fallback for old format messages
-        setMessages((prev) => [...prev, data]);
+        setMessages((prev) => {
+          const newMessages = [...prev, data];
+          if (courseId) {
+            chatHistoryCache.set(courseId, newMessages);
+            cacheTimestamps.set(courseId, Date.now());
+          }
+          return newMessages;
+        });
       }
     };
 
-    return () => {
-      if (
-        socketRef.current &&
-        (socketRef.current.readyState === WebSocket.OPEN ||
-          socketRef.current.readyState === WebSocket.CONNECTING)
-      ) {
-        socketRef.current.close();
+    socketRef.current.onclose = (event) => {
+      // Auto-reconnect with exponential backoff (unless manually closed)
+      if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
+        const delay = Math.min(
+          1000 * Math.pow(2, reconnectAttemptsRef.current),
+          30000
+        );
+        reconnectTimeoutRef.current = setTimeout(() => {
+          reconnectAttemptsRef.current++;
+          connectWebSocket();
+        }, delay);
       }
-      socketRef.current = null;
+    };
+
+    socketRef.current.onerror = (error) => {
+      console.error("WebSocket error:", error);
     };
   }, [url, courseId]);
 
-  const sendMessage = (message: string) => {
+  useEffect(() => {
+    // Clear messages and user count when course changes
+    setMessages([]);
+    setConnectedUsers(0);
+
+    // Clear any pending reconnection attempts
+    if (reconnectTimeoutRef.current) {
+      clearTimeout(reconnectTimeoutRef.current);
+    }
+
+    if (!courseId || !url) {
+      return;
+    }
+
+    // Fetch previous messages for the new course
+    fetchChatHistory(courseId);
+
+    // Connect WebSocket
+    connectWebSocket();
+
+    return () => {
+      if (reconnectTimeoutRef.current) {
+        clearTimeout(reconnectTimeoutRef.current);
+      }
+      if (socketRef.current) {
+        socketRef.current.close(1000); // Normal closure
+      }
+    };
+  }, [url, courseId, fetchChatHistory, connectWebSocket]);
+
+  const sendMessage = useCallback((message: string) => {
     if (socketRef.current?.readyState === WebSocket.OPEN && message.trim()) {
       socketRef.current.send(message.trim());
     }
-  };
+  }, []);
 
   return { messages, sendMessage, isLoading, connectedUsers };
 }

@@ -1,11 +1,7 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { Typography } from "@mui/material";
 import { useChatSocket } from "../hooks/useChatSocket";
-
-interface Course {
-  id: number;
-  name: string;
-}
+import { useCourses } from "../hooks/useCourses";
 
 interface ChatProps {
   wsBase: string;
@@ -14,8 +10,13 @@ interface ChatProps {
 export default function Chat({ wsBase }: ChatProps) {
   const [input, setInput] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
-  const [courses, setCourses] = useState<Course[]>([]);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+
+  // Use the shared course context instead of fetching again
+  const { enrolledCourses, isLoading: coursesLoading } = useCourses();
+
+  // Memoize the courses to prevent unnecessary re-renders
+  const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
 
   const wsUrl = selectedCourse ? `${wsBase}?courseId=${selectedCourse}` : null;
   const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
@@ -23,40 +24,12 @@ export default function Chat({ wsBase }: ChatProps) {
     selectedCourse
   );
 
-  // Fetch courses from API
+  // Set default course when courses load (only once)
   useEffect(() => {
-    const fetchCourses = async () => {
-      try {
-        const token = localStorage.getItem("jwt");
-        // Changed to fetch only enrolled courses instead of all courses
-        const response = await fetch(
-          `${import.meta.env.VITE_API_URL}/api/Course/my-courses`,
-          {
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }
-        );
-
-        if (response.ok) {
-          const coursesData: Course[] = await response.json();
-          setCourses(coursesData);
-
-          // Set default course if none selected
-          if (!selectedCourse && coursesData.length > 0) {
-            setSelectedCourse(coursesData[0].id);
-          }
-        } else {
-          console.error("Failed to fetch courses:", response.statusText);
-        }
-      } catch (error) {
-        console.error("Error fetching courses:", error);
-      }
-    };
-
-    fetchCourses();
-  }, [selectedCourse]);
+    if (!selectedCourse && courses.length > 0) {
+      setSelectedCourse(courses[0].id);
+    }
+  }, [selectedCourse, courses]);
 
   useEffect(() => {
     if (chatContainerRef.current) {
@@ -76,6 +49,17 @@ export default function Chat({ wsBase }: ChatProps) {
     setSelectedCourse(courseId);
     setInput("");
   };
+
+  // Show loading state while courses are being fetched
+  if (coursesLoading) {
+    return (
+      <div
+        style={{ maxWidth: "600px", margin: "20px auto", textAlign: "center" }}
+      >
+        <Typography>Loading courses...</Typography>
+      </div>
+    );
+  }
 
   return (
     <div style={{ maxWidth: "600px", margin: "20px auto" }}>

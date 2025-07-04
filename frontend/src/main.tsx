@@ -5,6 +5,7 @@ import "./index.css";
 import { Provider } from "react-redux";
 import { store } from "./app/store";
 import { ThemeProvider } from "./theme/ThemeProvider";
+import { CourseProvider } from "./context/CourseContext";
 import App from "./App.tsx";
 import Signup from "./auth/Signup.tsx";
 import Login from "./auth/Login.tsx";
@@ -46,7 +47,9 @@ ReactDOM.createRoot(rootElement).render(
   <StrictMode>
     <Provider store={store}>
       <ThemeProvider>
-        <RouterProvider router={router} />
+        <CourseProvider>
+          <RouterProvider router={router} />
+        </CourseProvider>
       </ThemeProvider>
     </Provider>
   </StrictMode>

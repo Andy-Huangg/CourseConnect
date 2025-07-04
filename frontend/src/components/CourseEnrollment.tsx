@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useMemo } from "react";
 import {
   Box,
   Typography,
@@ -16,95 +16,52 @@ import {
   DialogActions,
 } from "@mui/material";
 import { Check, Add, Remove, School } from "@mui/icons-material";
+import { useCourses } from "../hooks/useCourses";
 
 interface Course {
   id: number;
   name: string;
 }
 
-interface EnrollmentStatus {
-  [courseId: number]: boolean;
-}
-
 export default function CourseEnrollment() {
-  const [allCourses, setAllCourses] = useState<Course[]>([]);
-  const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
-  const [enrollmentStatus, setEnrollmentStatus] = useState<EnrollmentStatus>(
-    {}
-  );
-  const [loading, setLoading] = useState(true);
+  const {
+    allCourses,
+    enrolledCourses,
+    isLoading,
+    error,
+    updateEnrollment,
+    addNewCourse,
+  } = useCourses();
+
   const [actionLoading, setActionLoading] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [newCourseName, setNewCourseName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
+  const [localError, setLocalError] = useState<string | null>(null);
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("jwt");
 
-  const fetchCoursesAndEnrollments = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError(null);
-
-      // Fetch all courses
-      const coursesResponse = await fetch(`${apiUrl}/api/Course`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!coursesResponse.ok) {
-        throw new Error("Failed to fetch courses");
-      }
-
-      const coursesData: Course[] = await coursesResponse.json();
-      setAllCourses(coursesData);
-
-      // Fetch user's enrolled courses
-      const enrolledResponse = await fetch(`${apiUrl}/api/Course/my-courses`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!enrolledResponse.ok) {
-        throw new Error("Failed to fetch enrolled courses");
-      }
-
-      const enrolledData: Course[] = await enrolledResponse.json();
-      // Filter out Global course (courseId = 1) from enrolled courses display
-      const filteredEnrolledData = enrolledData.filter(
-        (course) => course.id !== 1
+  // Memoize enrollment status to avoid recalculation
+  const enrollmentStatus = useMemo(() => {
+    const statusMap: { [courseId: number]: boolean } = {};
+    allCourses.forEach((course) => {
+      statusMap[course.id] = enrolledCourses.some(
+        (enrolled) => enrolled.id === course.id
       );
-      setEnrolledCourses(filteredEnrolledData);
+    });
+    return statusMap;
+  }, [allCourses, enrolledCourses]);
 
-      // Create enrollment status mapping
-      const statusMap: EnrollmentStatus = {};
-      coursesData.forEach((course) => {
-        statusMap[course.id] = enrolledData.some(
-          (enrolled) => enrolled.id === course.id
-        );
-      });
-      setEnrollmentStatus(statusMap);
-    } catch (error) {
-      console.error("Error fetching courses:", error);
-      setError("Failed to load courses. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }, [apiUrl, token]);
-
-  useEffect(() => {
-    fetchCoursesAndEnrollments();
-  }, [fetchCoursesAndEnrollments]);
+  // Filter enrolled courses to exclude Global course (cached)
+  const displayEnrolledCourses = useMemo(() => {
+    return enrolledCourses.filter((course) => course.id !== 1);
+  }, [enrolledCourses]);
 
   const handleEnrollment = async (courseId: number, enroll: boolean) => {
     try {
       setActionLoading(courseId);
-      setError(null);
+      setLocalError(null);
 
       const method = enroll ? "POST" : "DELETE";
       const response = await fetch(`${apiUrl}/api/Course/${courseId}/enroll`, {
@@ -123,24 +80,11 @@ export default function CourseEnrollment() {
         );
       }
 
-      // Update enrollment status
-      setEnrollmentStatus((prev) => ({
-        ...prev,
-        [courseId]: enroll,
-      }));
-
-      // Update enrolled courses list
-      if (enroll) {
-        const course = allCourses.find((c) => c.id === courseId);
-        if (course) {
-          setEnrolledCourses((prev) => [...prev, course]);
-        }
-      } else {
-        setEnrolledCourses((prev) => prev.filter((c) => c.id !== courseId));
-      }
+      // Update the context instead of local state
+      updateEnrollment(courseId, enroll);
     } catch (error) {
       console.error("Error updating enrollment:", error);
-      setError(
+      setLocalError(
         error instanceof Error
           ? error.message
           : `Failed to ${
@@ -157,7 +101,7 @@ export default function CourseEnrollment() {
 
     try {
       setCreateLoading(true);
-      setError(null);
+      setLocalError(null);
 
       const response = await fetch(`${apiUrl}/api/Course`, {
         method: "POST",
@@ -171,30 +115,29 @@ export default function CourseEnrollment() {
       if (response.ok) {
         const newCourse: Course = await response.json();
 
-        // Add to all courses list
-        setAllCourses((prev) => [...prev, newCourse]);
-
-        // Auto-enroll in the new course
-        await handleEnrollment(newCourse.id, true);
+        // Add to context
+        addNewCourse(newCourse);
 
         // Close dialog and reset form
         setCreateDialogOpen(false);
         setNewCourseName("");
       } else if (response.status === 409) {
         const errorData = await response.json();
-        setError(errorData.message || "Course already exists!");
+        setLocalError(errorData.message || "Course already exists!");
       } else {
         throw new Error("Failed to create course");
       }
     } catch (error) {
       console.error("Error creating course:", error);
-      setError("Failed to create course. Please try again.");
+      setLocalError("Failed to create course. Please try again.");
     } finally {
       setCreateLoading(false);
     }
   };
 
-  if (loading) {
+  const displayError = error || localError;
+
+  if (isLoading) {
     return (
       <Box sx={{ display: "flex", justifyContent: "center", p: 4 }}>
         <CircularProgress />
@@ -222,9 +165,9 @@ export default function CourseEnrollment() {
         </Button>
       </Box>
 
-      {error && (
+      {displayError && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          {error}
+          {displayError}
         </Alert>
       )}
 
@@ -232,15 +175,15 @@ export default function CourseEnrollment() {
       <Card sx={{ mb: 4 }}>
         <CardContent>
           <Typography variant="h6" sx={{ mb: 2 }}>
-            My Enrolled Courses ({enrolledCourses.length})
+            My Enrolled Courses ({displayEnrolledCourses.length})
           </Typography>
-          {enrolledCourses.length === 0 ? (
+          {displayEnrolledCourses.length === 0 ? (
             <Typography color="text.secondary">
               You are not enrolled in any courses yet.
             </Typography>
           ) : (
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {enrolledCourses.map((course) => (
+              {displayEnrolledCourses.map((course) => (
                 <Chip
                   key={course.id}
                   label={course.name}
