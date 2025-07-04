@@ -139,7 +139,8 @@ export default function Chat({ wsBase }: ChatProps) {
               >
                 {courses.map((course) => (
                   <option key={course.id} value={course.id}>
-                    {course.name}{course.id === 1 ? " (Global Chat)" : ""}
+                    {course.name}
+                    {course.id === 1 ? " (Global Chat)" : ""}
                   </option>
                 ))}
               </select>
