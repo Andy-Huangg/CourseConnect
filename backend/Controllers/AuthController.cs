@@ -83,11 +83,16 @@ namespace backend.Controllers
                 throw new InvalidOperationException("JWT Key is not configured.");
             }
 
+            // JWT Claims:
+            // - Sub: User ID (standard JWT subject claim)
+            // - NameIdentifier: User ID (ASP.NET Core user identifier for authorization)
+            // - Name: Username (for display purposes)
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, username),
+                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()), // Standard sub claim should be unique identifier
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString())
+                new Claim(ClaimTypes.NameIdentifier, userId.ToString()), // ASP.NET Core user identifier
+                new Claim(ClaimTypes.Name, username) // Username for display purposes
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));

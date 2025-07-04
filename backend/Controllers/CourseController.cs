@@ -22,7 +22,8 @@ namespace backend.Controllers
         public async Task<IActionResult> GetAllCourses()
         {
             var courses = await _courseRepo.GetAllAsync();
-            return Ok(courses);
+            var courseDtos = courses.Select(c => new CourseDto { Id = c.Id, Name = c.Name });
+            return Ok(courseDtos);
         }
 
         // GET: api/Course/5
@@ -34,7 +35,8 @@ namespace backend.Controllers
             {
                 return NotFound();
             }
-            return Ok(course);
+            var courseDto = new CourseDto { Id = course.Id, Name = course.Name };
+            return Ok(courseDto);
         }
 
         // POST: api/Course
@@ -70,7 +72,87 @@ namespace backend.Controllers
             {
                 return NotFound();
             }
-            return Ok(course);
+            var courseDto = new CourseDto { Id = course.Id, Name = course.Name };
+            return Ok(courseDto);
+        }
+
+        // GET: api/Course/my-courses
+        [HttpGet("my-courses")]
+        public async Task<IActionResult> GetMyCourses()
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var courses = await _courseRepo.GetCoursesByUserIdAsync(userId);
+            var courseDtos = courses.Select(c => new CourseDto { Id = c.Id, Name = c.Name });
+            return Ok(courseDtos);
+        }
+
+        // POST: api/Course/5/enroll
+        [HttpPost("{courseId}/enroll")]
+        public async Task<IActionResult> EnrollInCourse(int courseId)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var course = await _courseRepo.GetByIdAsync(courseId);
+            if (course == null)
+            {
+                return NotFound("Course not found");
+            }
+
+            var success = await _courseRepo.EnrollUserAsync(userId, courseId);
+            if (!success)
+            {
+                return BadRequest("Failed to enroll in course");
+            }
+
+            return Ok(new { message = $"Successfully enrolled in {course.Name}" });
+        }
+
+        // DELETE: api/Course/5/enroll
+        [HttpDelete("{courseId}/enroll")]
+        public async Task<IActionResult> UnenrollFromCourse(int courseId)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var course = await _courseRepo.GetByIdAsync(courseId);
+            if (course == null)
+            {
+                return NotFound("Course not found");
+            }
+
+            var success = await _courseRepo.UnenrollUserAsync(userId, courseId);
+            if (!success)
+            {
+                return BadRequest("Failed to unenroll from course");
+            }
+
+            return Ok(new { message = $"Successfully unenrolled from {course.Name}" });
+        }
+
+        // GET: api/Course/5/enrollment-status
+        [HttpGet("{courseId}/enrollment-status")]
+        public async Task<IActionResult> GetEnrollmentStatus(int courseId)
+        {
+            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var isEnrolled = await _courseRepo.IsUserEnrolledAsync(userId, courseId);
+            return Ok(new { isEnrolled });
         }
     }
 

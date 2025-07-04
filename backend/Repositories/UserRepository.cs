@@ -17,12 +17,6 @@ namespace backend.Repositories
             return await _context.User.FirstOrDefaultAsync(u => u.Username == username);
         }
 
-        public async Task AddUserAsync(User user)
-        {
-            _context.User.Add(user);
-            await _context.SaveChangesAsync();
-        }
-
         public async Task<bool> UsernameExistsAsync(string username)
         {
             return await _context.User.AnyAsync(u => u.Username == username);
