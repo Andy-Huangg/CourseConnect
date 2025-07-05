@@ -12,6 +12,7 @@ export default function Chat({ wsBase }: ChatProps) {
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [anonymousName, setAnonymousName] = useState<string>("");
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Use the shared course context instead of fetching again
@@ -21,25 +22,61 @@ export default function Chat({ wsBase }: ChatProps) {
   const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
 
   // Only connect to WebSocket after preferences are loaded
-  const wsUrl = selectedCourse && preferencesLoaded ? `${wsBase}?courseId=${selectedCourse}` : null;
+  const wsUrl =
+    selectedCourse && preferencesLoaded
+      ? `${wsBase}?courseId=${selectedCourse}`
+      : null;
   const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
     wsUrl,
     selectedCourse,
     isAnonymous
   );
 
+  // Fetch anonymous name for the current course
+  const fetchAnonymousName = async (courseId: number) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Chat/anonymous-name/${courseId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnonymousName(data.anonymousName);
+      } else {
+        console.error("Failed to fetch anonymous name:", response.statusText);
+        setAnonymousName("");
+      }
+    } catch (error) {
+      console.error("Error fetching anonymous name:", error);
+      setAnonymousName("");
+    }
+  };
+
   // Load anonymous mode preference for the selected course
   useEffect(() => {
     if (selectedCourse) {
       // Load preferences immediately when course changes
-      const savedAnonymousMode = localStorage.getItem(`anonymousMode_${selectedCourse}`);
-      const newAnonymousMode = savedAnonymousMode === 'true';
-      
+      const savedAnonymousMode = localStorage.getItem(
+        `anonymousMode_${selectedCourse}`
+      );
+      const newAnonymousMode = savedAnonymousMode === "true";
+
       // Set both the anonymous mode and preferences loaded state together
       setIsAnonymous(newAnonymousMode);
       setPreferencesLoaded(true);
+
+      // Fetch anonymous name for this course
+      fetchAnonymousName(selectedCourse);
     } else {
       setPreferencesLoaded(false);
+      setAnonymousName("");
     }
   }, [selectedCourse]);
 
@@ -47,7 +84,10 @@ export default function Chat({ wsBase }: ChatProps) {
   const handleAnonymousModeChange = (checked: boolean) => {
     setIsAnonymous(checked);
     if (selectedCourse) {
-      localStorage.setItem(`anonymousMode_${selectedCourse}`, checked.toString());
+      localStorage.setItem(
+        `anonymousMode_${selectedCourse}`,
+        checked.toString()
+      );
     }
   };
 
@@ -87,7 +127,9 @@ export default function Chat({ wsBase }: ChatProps) {
         style={{ maxWidth: "600px", margin: "20px auto", textAlign: "center" }}
       >
         <Typography>
-          {coursesLoading ? "Loading courses..." : "Loading chat preferences..."}
+          {coursesLoading
+            ? "Loading courses..."
+            : "Loading chat preferences..."}
         </Typography>
       </div>
     );
@@ -162,7 +204,7 @@ export default function Chat({ wsBase }: ChatProps) {
               </select>
             </label>
           </div>
-          
+
           <div
             style={{
               display: "flex",
@@ -190,13 +232,15 @@ export default function Chat({ wsBase }: ChatProps) {
                   <Typography
                     variant="caption"
                     component="div"
-                    style={{ 
-                      color: "#666", 
+                    style={{
+                      color: "#666",
                       marginTop: "2px",
-                      fontSize: "0.75rem"
+                      fontSize: "0.75rem",
                     }}
                   >
-                    Get a unique anonymous name for this course
+                    {isAnonymous && anonymousName
+                      ? `You appear as: ${anonymousName}`
+                      : "Get a unique anonymous name for this course"}
                   </Typography>
                 </span>
               }
@@ -204,14 +248,14 @@ export default function Chat({ wsBase }: ChatProps) {
             />
             {isAnonymous && (
               <Chip
-                label="🎭 Anonymous"
+                label={anonymousName ? `🎭 ${anonymousName}` : "🎭 Anonymous"}
                 color="warning"
                 size="small"
                 variant="filled"
-                style={{ 
+                style={{
                   backgroundColor: "#ff9800",
                   color: "white",
-                  fontWeight: "bold"
+                  fontWeight: "bold",
                 }}
               />
             )}

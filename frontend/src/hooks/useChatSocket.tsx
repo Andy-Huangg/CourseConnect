@@ -15,7 +15,11 @@ const chatHistoryCache = new Map<number, string[]>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 const cacheTimestamps = new Map<number, number>();
 
-export function useChatSocket(url: string | null, courseId: number | null, isAnonymous: boolean = false) {
+export function useChatSocket(
+  url: string | null,
+  courseId: number | null,
+  isAnonymous: boolean = false
+) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
