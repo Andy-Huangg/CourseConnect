@@ -1,6 +1,7 @@
 using Microsoft.EntityFrameworkCore;
 using backend.Models;
 using backend.Repositories;
+using backend.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using System.Text;
@@ -37,6 +38,7 @@ namespace backend
             builder.Services.AddScoped<IChatRepository, ChatRepository>();
             builder.Services.AddScoped<ICourseRepository, CourseRepository>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IAnonymousNameService, AnonymousNameService>();
 
 
             // Configure JWT Auth
@@ -124,7 +126,9 @@ namespace backend
                     using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                     var chatRepo = context.RequestServices.GetRequiredService<IChatRepository>();
                     var courseRepo = context.RequestServices.GetRequiredService<ICourseRepository>();
-                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo, courseRepo);
+                    var anonymousNameService = context.RequestServices.GetRequiredService<IAnonymousNameService>();
+                    var userRepo = context.RequestServices.GetRequiredService<IUserRepository>();
+                    await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo, courseRepo, anonymousNameService, userRepo);
                 }
                 else
                 {

@@ -4,6 +4,7 @@ using System.Web;
 using System.Security.Claims;
 using backend.Repositories;
 using backend.Models;
+using backend.Services;
 using System.IdentityModel.Tokens.Jwt;
 using Microsoft.IdentityModel.Tokens;
 
@@ -100,7 +101,7 @@ namespace backend.WebSockets
             }
         }
 
-        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository)
+        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository, IAnonymousNameService anonymousNameService, IUserRepository userRepository)
         {
             var courseId = GetCourseIdFromQuery(context);
             if (courseId == null)
@@ -130,7 +131,10 @@ namespace backend.WebSockets
                 return;
             }
 
-            Console.WriteLine($"User {userId} connecting to course {courseId}");
+            // Get anonymous mode from query parameters
+            var isAnonymousMode = GetAnonymousModeFromQuery(context);
+
+            Console.WriteLine($"User {userId} connecting to course {courseId} (anonymous: {isAnonymousMode})");
 
             if (!_courseClients.ContainsKey(courseId.Value))
                 _courseClients[courseId.Value] = new List<WebSocket>();
@@ -182,17 +186,39 @@ namespace backend.WebSockets
                     {
                         var message = Encoding.UTF8.GetString(buffer, 0, result.Count);
 
+                        // Determine display name based on anonymous mode
+                        string displayName;
+                        if (isAnonymousMode && userId.HasValue)
+                        {
+                            displayName = anonymousNameService.GenerateAnonymousName(userId.Value, courseId.Value);
+                        }
+                        else
+                        {
+                            // Get the real username from the database
+                            if (userId.HasValue)
+                            {
+                                var user = await userRepository.GetByIdAsync(userId.Value);
+                                displayName = user?.DisplayName ?? $"User{userId}";
+                            }
+                            else
+                            {
+                                displayName = "Anonymous";
+                            }
+                        }
+
                         // Save message to DB with courseId
                         await chatRepository.AddMessageAsync(new ChatMessage
                         {
                             SenderId = userId?.ToString() ?? string.Empty,
+                            DisplayName = displayName,
                             Content = message,
+                            IsAnonymous = isAnonymousMode,
                             Timestamp = DateTime.UtcNow,
                             CourseId = courseId.Value
                         });
 
                         // Format message with sender info for broadcasting
-                        var formattedMessage = $"MESSAGE:{userId?.ToString() ?? "Anonymous"}: {message}";
+                        var formattedMessage = $"MESSAGE:{displayName}: {message}";
                         var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
                         foreach (var client in _courseClients[courseId.Value].Where(c => c.State == WebSocketState.Open))
                         {
@@ -289,6 +315,18 @@ namespace backend.WebSockets
             }
 
             return null;
+        }
+
+        private static bool GetAnonymousModeFromQuery(HttpContext context)
+        {
+            var query = context.Request.Query;
+            if (query.TryGetValue("anonymous", out var anonymousStr) &&
+                bool.TryParse(anonymousStr, out bool isAnonymous))
+            {
+                return isAnonymous;
+            }
+
+            return false; // Default to non-anonymous
         }
 
         private static void CleanupClosedConnections(int courseId)
