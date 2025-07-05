@@ -4,8 +4,10 @@ namespace backend.Models
     {
         public int Id { get; set; }
 
-        public required string SenderId { get; set; } // or SenderName, if anonymous
+        public required string SenderId { get; set; } // User ID as string
+        public required string DisplayName { get; set; } // Display name (real username or anonymous name)
         public required string Content { get; set; }
+        public bool IsAnonymous { get; set; } = false; // Whether this message was sent anonymously
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
 
