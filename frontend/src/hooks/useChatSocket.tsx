@@ -3,7 +3,9 @@ import { useEffect, useRef, useState, useCallback } from "react";
 interface ChatMessage {
   id: number;
   senderId: string;
+  displayName: string;
   content: string;
+  isAnonymous: boolean;
   timestamp: string;
   courseId: number;
 }
@@ -13,7 +15,7 @@ const chatHistoryCache = new Map<number, string[]>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 const cacheTimestamps = new Map<number, number>();
 
-export function useChatSocket(url: string | null, courseId: number | null) {
+export function useChatSocket(url: string | null, courseId: number | null, isAnonymous: boolean = false) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -47,9 +49,9 @@ export function useChatSocket(url: string | null, courseId: number | null) {
 
       if (response.ok) {
         const chatHistory: ChatMessage[] = await response.json();
-        // Convert chat messages to display format
+        // Convert chat messages to display format using DisplayName
         const messageTexts = chatHistory.map(
-          (msg) => `${msg.senderId}: ${msg.content}`
+          (msg) => `${msg.displayName}: ${msg.content}`
         );
 
         // Cache the results
@@ -83,7 +85,10 @@ export function useChatSocket(url: string | null, courseId: number | null) {
       ? url
       : `${url}${url.includes("?") ? "&" : "?"}token=${token}`;
 
-    socketRef.current = new WebSocket(urlWithToken);
+    // Add anonymous parameter to URL
+    const finalUrl = `${urlWithToken}&anonymous=${isAnonymous}`;
+
+    socketRef.current = new WebSocket(finalUrl);
 
     socketRef.current.onopen = () => {
       reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
@@ -136,7 +141,7 @@ export function useChatSocket(url: string | null, courseId: number | null) {
     socketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
     };
-  }, [url, courseId]);
+  }, [url, courseId, isAnonymous]);
 
   useEffect(() => {
     // Clear messages and user count when course changes
@@ -167,6 +172,15 @@ export function useChatSocket(url: string | null, courseId: number | null) {
       }
     };
   }, [url, courseId, fetchChatHistory, connectWebSocket]);
+
+  // Separate effect to handle anonymous mode changes without refetching chat history
+  useEffect(() => {
+    // Only reconnect if we already have an active connection and anonymous mode changed
+    if (socketRef.current && courseId && url) {
+      // Close existing connection and reconnect with new anonymous mode
+      connectWebSocket();
+    }
+  }, [isAnonymous, connectWebSocket, courseId, url]);
 
   const sendMessage = useCallback((message: string) => {
     if (socketRef.current?.readyState === WebSocket.OPEN && message.trim()) {

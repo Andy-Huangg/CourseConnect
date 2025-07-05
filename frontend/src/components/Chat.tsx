@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Typography } from "@mui/material";
+import { Typography, Switch, FormControlLabel, Chip } from "@mui/material";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useCourses } from "../hooks/useCourses";
 
@@ -10,6 +10,8 @@ interface ChatProps {
 export default function Chat({ wsBase }: ChatProps) {
   const [input, setInput] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<number | null>(null);
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Use the shared course context instead of fetching again
@@ -18,16 +20,43 @@ export default function Chat({ wsBase }: ChatProps) {
   // Memoize the courses to prevent unnecessary re-renders
   const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
 
-  const wsUrl = selectedCourse ? `${wsBase}?courseId=${selectedCourse}` : null;
+  // Only connect to WebSocket after preferences are loaded
+  const wsUrl = selectedCourse && preferencesLoaded ? `${wsBase}?courseId=${selectedCourse}` : null;
   const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
     wsUrl,
-    selectedCourse
+    selectedCourse,
+    isAnonymous
   );
+
+  // Load anonymous mode preference for the selected course
+  useEffect(() => {
+    if (selectedCourse) {
+      // Load preferences immediately when course changes
+      const savedAnonymousMode = localStorage.getItem(`anonymousMode_${selectedCourse}`);
+      const newAnonymousMode = savedAnonymousMode === 'true';
+      
+      // Set both the anonymous mode and preferences loaded state together
+      setIsAnonymous(newAnonymousMode);
+      setPreferencesLoaded(true);
+    } else {
+      setPreferencesLoaded(false);
+    }
+  }, [selectedCourse]);
+
+  // Save anonymous mode preference when it changes
+  const handleAnonymousModeChange = (checked: boolean) => {
+    setIsAnonymous(checked);
+    if (selectedCourse) {
+      localStorage.setItem(`anonymousMode_${selectedCourse}`, checked.toString());
+    }
+  };
 
   // Set default course when courses load (only once)
   useEffect(() => {
     if (!selectedCourse && courses.length > 0) {
-      setSelectedCourse(courses[0].id);
+      const defaultCourse = courses[0].id;
+      setSelectedCourse(defaultCourse);
+      // Note: Anonymous mode preference will be loaded by the effect above
     }
   }, [selectedCourse, courses]);
 
@@ -48,15 +77,18 @@ export default function Chat({ wsBase }: ChatProps) {
   const handleCourseChange = (courseId: number) => {
     setSelectedCourse(courseId);
     setInput("");
+    // Don't reset preferencesLoaded here - let the effect handle preference loading
   };
 
-  // Show loading state while courses are being fetched
-  if (coursesLoading) {
+  // Show loading state while courses are being fetched or preferences are loading
+  if (coursesLoading || !preferencesLoaded) {
     return (
       <div
         style={{ maxWidth: "600px", margin: "20px auto", textAlign: "center" }}
       >
-        <Typography>Loading courses...</Typography>
+        <Typography>
+          {coursesLoading ? "Loading courses..." : "Loading chat preferences..."}
+        </Typography>
       </div>
     );
   }
@@ -129,6 +161,60 @@ export default function Chat({ wsBase }: ChatProps) {
                 ))}
               </select>
             </label>
+          </div>
+          
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "10px",
+              marginBottom: "10px",
+              padding: "8px",
+              backgroundColor: isAnonymous ? "#fff3e0" : "#f8f9fa",
+              borderRadius: "6px",
+              border: `1px solid ${isAnonymous ? "#ffcc02" : "#e0e0e0"}`,
+              transition: "all 0.2s ease",
+            }}
+          >
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={isAnonymous}
+                  onChange={(e) => handleAnonymousModeChange(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label={
+                <span style={{ fontWeight: 500 }}>
+                  Anonymous Mode
+                  <Typography
+                    variant="caption"
+                    component="div"
+                    style={{ 
+                      color: "#666", 
+                      marginTop: "2px",
+                      fontSize: "0.75rem"
+                    }}
+                  >
+                    Get a unique anonymous name for this course
+                  </Typography>
+                </span>
+              }
+              style={{ margin: 0, flex: 1 }}
+            />
+            {isAnonymous && (
+              <Chip
+                label="🎭 Anonymous"
+                color="warning"
+                size="small"
+                variant="filled"
+                style={{ 
+                  backgroundColor: "#ff9800",
+                  color: "white",
+                  fontWeight: "bold"
+                }}
+              />
+            )}
           </div>
           <div
             ref={chatContainerRef}
