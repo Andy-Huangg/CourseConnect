@@ -17,6 +17,11 @@ namespace backend.Repositories
             return await _context.User.FirstOrDefaultAsync(u => u.Username == username);
         }
 
+        public async Task<User?> GetByIdAsync(int id)
+        {
+            return await _context.User.FirstOrDefaultAsync(u => u.Id == id);
+        }
+
         public async Task<bool> UsernameExistsAsync(string username)
         {
             return await _context.User.AnyAsync(u => u.Username == username);
