@@ -1,6 +1,7 @@
 using backend.Models;
 using backend.Repositories;
 using backend.Services;
+using backend.WebSockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -42,6 +43,70 @@ namespace backend.Controllers
 
             var anonymousName = _anonymousNameService.GenerateAnonymousName(userId, courseId);
             return Ok(new { anonymousName });
+        }
+
+        // PUT: api/Chat/{messageId}
+        [HttpPut("{messageId}")]
+        public async Task<IActionResult> EditMessage(int messageId, [FromBody] EditMessageDto editDto)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var message = await _chatRepo.GetMessageByIdAsync(messageId);
+            if (message == null)
+            {
+                return NotFound("Message not found");
+            }
+
+            // Check if the user owns this message
+            if (message.SenderId != userId.ToString())
+            {
+                return Forbid("You can only edit your own messages");
+            }
+
+            // Update the message
+            message.Content = editDto.Content;
+            message.EditedAt = DateTime.UtcNow;
+
+            await _chatRepo.UpdateMessageAsync(message);
+
+            // Broadcast the update to all connected clients in this course
+            await WebSocketHandler.BroadcastMessageUpdate(message.CourseId, message);
+
+            return Ok(new MessageActionResponseDto { Success = true, Message = "Message updated successfully" });
+        }
+
+        // DELETE: api/Chat/{messageId}
+        [HttpDelete("{messageId}")]
+        public async Task<IActionResult> DeleteMessage(int messageId)
+        {
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token");
+            }
+
+            var message = await _chatRepo.GetMessageByIdAsync(messageId);
+            if (message == null)
+            {
+                return NotFound("Message not found");
+            }
+
+            // Check if the user owns this message
+            if (message.SenderId != userId.ToString())
+            {
+                return Forbid("You can only delete your own messages");
+            }
+
+            await _chatRepo.DeleteMessageAsync(messageId);
+
+            // Broadcast the deletion to all connected clients in this course
+            await WebSocketHandler.BroadcastMessageDelete(message.CourseId, messageId);
+
+            return Ok(new MessageActionResponseDto { Success = true, Message = "Message deleted successfully" });
         }
     }
 }

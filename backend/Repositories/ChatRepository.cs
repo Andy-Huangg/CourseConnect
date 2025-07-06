@@ -15,7 +15,7 @@ namespace backend.Repositories
         public async Task<IEnumerable<ChatMessage>> GetMessagesByCourseIdAsync(int courseId)
         {
             return await _context.ChatMessages
-                .Where(m => m.CourseId == courseId)
+                .Where(m => m.CourseId == courseId && !m.IsDeleted)
                 .OrderBy(m => m.Timestamp)
                 .ToListAsync();
         }
@@ -24,6 +24,28 @@ namespace backend.Repositories
         {
             _context.ChatMessages.Add(message);
             await _context.SaveChangesAsync();
+        }
+
+        public async Task<ChatMessage?> GetMessageByIdAsync(int messageId)
+        {
+            return await _context.ChatMessages
+                .FirstOrDefaultAsync(m => m.Id == messageId && !m.IsDeleted);
+        }
+
+        public async Task UpdateMessageAsync(ChatMessage message)
+        {
+            _context.ChatMessages.Update(message);
+            await _context.SaveChangesAsync();
+        }
+
+        public async Task DeleteMessageAsync(int messageId)
+        {
+            var message = await GetMessageByIdAsync(messageId);
+            if (message != null)
+            {
+                message.IsDeleted = true;
+                await _context.SaveChangesAsync();
+            }
         }
     }
 

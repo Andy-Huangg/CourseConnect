@@ -12,4 +12,15 @@ namespace backend.Models
         public required string Username { get; set; }
         public required string DisplayName { get; set; }
     }
+
+    public class EditMessageDto
+    {
+        public required string Content { get; set; }
+    }
+
+    public class MessageActionResponseDto
+    {
+        public bool Success { get; set; }
+        public string? Message { get; set; }
+    }
 }

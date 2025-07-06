@@ -6,6 +6,9 @@ namespace backend.Repositories
     {
         Task<IEnumerable<ChatMessage>> GetMessagesByCourseIdAsync(int courseId);
         Task AddMessageAsync(ChatMessage message);
+        Task<ChatMessage?> GetMessageByIdAsync(int messageId);
+        Task UpdateMessageAsync(ChatMessage message);
+        Task DeleteMessageAsync(int messageId);
     }
 
 }
