@@ -10,6 +10,8 @@ namespace backend.Models
         public bool IsAnonymous { get; set; } = false; // Whether this message was sent anonymously
 
         public DateTime Timestamp { get; set; } = DateTime.UtcNow;
+        public DateTime? EditedAt { get; set; } // When the message was last edited
+        public bool IsDeleted { get; set; } = false; // Soft delete flag
 
         // Link to Course Chat Room
         public int CourseId { get; set; }
