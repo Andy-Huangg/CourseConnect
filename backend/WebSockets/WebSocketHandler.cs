@@ -101,24 +101,37 @@ namespace backend.WebSockets
             }
         }
 
-        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository, IAnonymousNameService anonymousNameService, IUserRepository userRepository)
+        public class ValidationResult
+        {
+            public bool IsValid { get; set; }
+            public int StatusCode { get; set; }
+            public string ErrorMessage { get; set; } = string.Empty;
+        }
+
+        public static async Task<ValidationResult> ValidateWebSocketConnectionAsync(HttpContext context, ICourseRepository courseRepository)
         {
             var courseId = GetCourseIdFromQuery(context);
             if (courseId == null)
             {
                 Console.WriteLine("Error: Missing or invalid courseId");
-                context.Response.StatusCode = 400;
-                await context.Response.WriteAsync("Missing or invalid courseId");
-                return;
+                return new ValidationResult
+                {
+                    IsValid = false,
+                    StatusCode = 400,
+                    ErrorMessage = "Missing or invalid courseId"
+                };
             }
 
             var userId = GetUserIdFromToken(context);
             if (userId == null)
             {
                 Console.WriteLine("Error: Invalid or missing authentication token");
-                context.Response.StatusCode = 401;
-                await context.Response.WriteAsync("Invalid or missing authentication token");
-                return;
+                return new ValidationResult
+                {
+                    IsValid = false,
+                    StatusCode = 401,
+                    ErrorMessage = "Invalid or missing authentication token"
+                };
             }
 
             // Validate that the user is enrolled in the course
@@ -126,53 +139,129 @@ namespace backend.WebSockets
             if (!isEnrolled)
             {
                 Console.WriteLine($"Error: User {userId} is not enrolled in course {courseId}");
-                context.Response.StatusCode = 403;
-                await context.Response.WriteAsync("Access denied: You must be enrolled in this course to access the chat");
-                return;
+                return new ValidationResult
+                {
+                    IsValid = false,
+                    StatusCode = 403,
+                    ErrorMessage = "Access denied: You must be enrolled in this course to access the chat"
+                };
             }
+
+            return new ValidationResult { IsValid = true };
+        }
+
+        public static async Task BroadcastMessageUpdate(int courseId, ChatMessage message)
+        {
+            if (!_courseClients.ContainsKey(courseId))
+                return;
+
+            var messageDto = new
+            {
+                id = message.Id,
+                senderId = message.SenderId,
+                displayName = message.DisplayName,
+                content = message.Content,
+                isAnonymous = message.IsAnonymous,
+                timestamp = message.Timestamp.ToString("o"),
+                courseId = message.CourseId,
+                editedAt = message.EditedAt?.ToString("o"),
+                isDeleted = message.IsDeleted
+            };
+
+            var jsonMessage = System.Text.Json.JsonSerializer.Serialize(messageDto);
+            var formattedMessage = $"MESSAGE_UPDATED:{jsonMessage}";
+            var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
+
+            var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
+            foreach (var client in openClients)
+            {
+                try
+                {
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
+                }
+            }
+        }
+
+        public static async Task BroadcastMessageDelete(int courseId, int messageId)
+        {
+            if (!_courseClients.ContainsKey(courseId))
+                return;
+
+            var formattedMessage = $"MESSAGE_DELETED:{messageId}";
+            var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
+
+            var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
+            foreach (var client in openClients)
+            {
+                try
+                {
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
+                }
+            }
+        }
+
+        public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository, IAnonymousNameService anonymousNameService, IUserRepository userRepository)
+        {
+            // Validation is already done before this method is called
+            var courseId = GetCourseIdFromQuery(context)!.Value; // We know it's valid
+            var userId = GetUserIdFromToken(context)!.Value; // We know it's valid
 
             // Get anonymous mode from query parameters
             var isAnonymousMode = GetAnonymousModeFromQuery(context);
 
             Console.WriteLine($"User {userId} connecting to course {courseId} (anonymous: {isAnonymousMode})");
 
-            if (!_courseClients.ContainsKey(courseId.Value))
-                _courseClients[courseId.Value] = new List<WebSocket>();
+            if (!_courseClients.ContainsKey(courseId))
+                _courseClients[courseId] = new List<WebSocket>();
 
-            if (!_courseUsers.ContainsKey(courseId.Value))
-                _courseUsers[courseId.Value] = new HashSet<int>();
+            if (!_courseUsers.ContainsKey(courseId))
+                _courseUsers[courseId] = new HashSet<int>();
 
             // Clean up any closed connections for this course before adding new one
-            CleanupClosedConnections(courseId.Value);
+            CleanupClosedConnections(courseId);
 
             // Debug logging for courseId 1 (Global)
-            if (courseId.Value == 1)
+            if (courseId == 1)
             {
                 Console.WriteLine($"[DEBUG] Global course - Before adding user {userId}:");
-                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId.Value].Count}");
-                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId.Value])}");
+                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
+                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
                 Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
             }
 
-            _courseClients[courseId.Value].Add(webSocket);
-            _courseUsers[courseId.Value].Add(userId.Value);
+            _courseClients[courseId].Add(webSocket);
+            _courseUsers[courseId].Add(userId);
 
             // Track this websocket-user relationship
-            _socketUserMap[webSocket] = (courseId.Value, userId.Value);
+            _socketUserMap[webSocket] = (courseId, userId);
 
             // More debug logging for courseId 1
-            if (courseId.Value == 1)
+            if (courseId == 1)
             {
                 Console.WriteLine($"[DEBUG] Global course - After adding user {userId}:");
-                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId.Value].Count}");
-                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId.Value])}");
+                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
+                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
                 Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
             }
 
-            Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId.Value].Count} users");
+            Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId].Count} users");
 
             // Broadcast updated user count
-            await BroadcastUserCount(courseId.Value);
+            await BroadcastUserCount(courseId);
 
             var buffer = new byte[1024 * 4];
 
@@ -188,39 +277,48 @@ namespace backend.WebSockets
 
                         // Determine display name based on anonymous mode
                         string displayName;
-                        if (isAnonymousMode && userId.HasValue)
+                        if (isAnonymousMode)
                         {
-                            displayName = anonymousNameService.GenerateAnonymousName(userId.Value, courseId.Value);
+                            displayName = anonymousNameService.GenerateAnonymousName(userId, courseId);
                         }
                         else
                         {
                             // Get the real username from the database
-                            if (userId.HasValue)
-                            {
-                                var user = await userRepository.GetByIdAsync(userId.Value);
-                                displayName = user?.DisplayName ?? $"User{userId}";
-                            }
-                            else
-                            {
-                                displayName = "Anonymous";
-                            }
+                            var user = await userRepository.GetByIdAsync(userId);
+                            displayName = user?.DisplayName ?? $"User{userId}";
                         }
 
                         // Save message to DB with courseId
-                        await chatRepository.AddMessageAsync(new ChatMessage
+                        var chatMessage = new ChatMessage
                         {
-                            SenderId = userId?.ToString() ?? string.Empty,
+                            SenderId = userId.ToString(),
                             DisplayName = displayName,
                             Content = message,
                             IsAnonymous = isAnonymousMode,
                             Timestamp = DateTime.UtcNow,
-                            CourseId = courseId.Value
-                        });
+                            CourseId = courseId
+                        };
+                        
+                        await chatRepository.AddMessageAsync(chatMessage);
 
-                        // Format message with sender info for broadcasting
-                        var formattedMessage = $"MESSAGE:{displayName}: {message}";
+                        // Send the complete message object as JSON for real-time updates
+                        var messageDto = new
+                        {
+                            id = chatMessage.Id,
+                            senderId = chatMessage.SenderId,
+                            displayName = chatMessage.DisplayName,
+                            content = chatMessage.Content,
+                            isAnonymous = chatMessage.IsAnonymous,
+                            timestamp = chatMessage.Timestamp.ToString("o"), // ISO format
+                            courseId = chatMessage.CourseId,
+                            editedAt = (string?)null,
+                            isDeleted = false
+                        };
+                        
+                        var jsonMessage = System.Text.Json.JsonSerializer.Serialize(messageDto);
+                        var formattedMessage = $"NEW_MESSAGE:{jsonMessage}";
                         var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
-                        foreach (var client in _courseClients[courseId.Value].Where(c => c.State == WebSocketState.Open))
+                        foreach (var client in _courseClients[courseId].Where(c => c.State == WebSocketState.Open))
                         {
                             try
                             {
@@ -247,17 +345,17 @@ namespace backend.WebSockets
                 Console.WriteLine($"User {userId} disconnecting from course {courseId}");
 
                 // Debug logging for courseId 1 (Global)
-                if (courseId.Value == 1)
+                if (courseId == 1)
                 {
                     Console.WriteLine($"[DEBUG] Global course - Before cleanup for user {userId}:");
-                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId.Value) ? _courseClients[courseId.Value].Count : 0)}");
-                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId.Value) ? string.Join(", ", _courseUsers[courseId.Value]) : "none")}");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
                     Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
                 }
 
-                if (_courseClients.ContainsKey(courseId.Value))
+                if (_courseClients.ContainsKey(courseId))
                 {
-                    _courseClients[courseId.Value].Remove(webSocket);
+                    _courseClients[courseId].Remove(webSocket);
                 }
 
                 // Remove from socket-user mapping and check if user should be removed
@@ -267,36 +365,36 @@ namespace backend.WebSockets
                     _socketUserMap.Remove(webSocket);
 
                     // Only remove user from course if they don't have any other open connections to this course
-                    var userHasOtherConnections = _courseClients.ContainsKey(courseId.Value) &&
-                        _courseClients[courseId.Value]
+                    var userHasOtherConnections = _courseClients.ContainsKey(courseId) &&
+                        _courseClients[courseId]
                             .Any(ws => _socketUserMap.TryGetValue(ws, out var info) &&
                                       info.userId == socketUserId && ws.State == WebSocketState.Open);
 
-                    if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId.Value))
+                    if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId))
                     {
-                        _courseUsers[courseId.Value].Remove(socketUserId);
+                        _courseUsers[courseId].Remove(socketUserId);
                     }
 
                     // Debug logging for courseId 1
-                    if (courseId.Value == 1)
+                    if (courseId == 1)
                     {
                         Console.WriteLine($"[DEBUG] Global course - User {socketUserId} other connections: {userHasOtherConnections}");
                     }
                 }
 
                 // More debug logging for courseId 1
-                if (courseId.Value == 1)
+                if (courseId == 1)
                 {
                     Console.WriteLine($"[DEBUG] Global course - After cleanup for user {userId}:");
-                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId.Value) ? _courseClients[courseId.Value].Count : 0)}");
-                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId.Value) ? string.Join(", ", _courseUsers[courseId.Value]) : "none")}");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
                     Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
                 }
 
-                Console.WriteLine($"Course {courseId} now has {(_courseUsers.ContainsKey(courseId.Value) ? _courseUsers[courseId.Value].Count : 0)} users after disconnect");
+                Console.WriteLine($"Course {courseId} now has {(_courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0)} users after disconnect");
 
                 // Broadcast updated user count
-                await BroadcastUserCount(courseId.Value);
+                await BroadcastUserCount(courseId);
 
                 if (webSocket.State != WebSocketState.Closed)
                 {
