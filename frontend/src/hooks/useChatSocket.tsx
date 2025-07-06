@@ -8,10 +8,12 @@ interface ChatMessage {
   isAnonymous: boolean;
   timestamp: string;
   courseId: number;
+  editedAt?: string;
+  isDeleted: boolean;
 }
 
 // Cache for chat histories to avoid refetching
-const chatHistoryCache = new Map<number, string[]>();
+const chatHistoryCache = new Map<number, ChatMessage[]>();
 const CACHE_DURATION = 2 * 60 * 1000; // 2 minutes
 const cacheTimestamps = new Map<number, number>();
 
@@ -21,7 +23,7 @@ export function useChatSocket(
   isAnonymous: boolean = false
 ) {
   const socketRef = useRef<WebSocket | null>(null);
-  const [messages, setMessages] = useState<string[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<number>(0);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -53,16 +55,12 @@ export function useChatSocket(
 
       if (response.ok) {
         const chatHistory: ChatMessage[] = await response.json();
-        // Convert chat messages to display format using DisplayName
-        const messageTexts = chatHistory.map(
-          (msg) => `${msg.displayName}: ${msg.content}`
-        );
 
         // Cache the results
-        chatHistoryCache.set(courseId, messageTexts);
+        chatHistoryCache.set(courseId, chatHistory);
         cacheTimestamps.set(courseId, Date.now());
 
-        setMessages(messageTexts);
+        setMessages(chatHistory);
       } else {
         console.error("Failed to fetch chat history:", response.statusText);
         setMessages([]);
@@ -104,27 +102,94 @@ export function useChatSocket(
       if (data.startsWith("USER_COUNT:")) {
         const count = parseInt(data.replace("USER_COUNT:", ""));
         setConnectedUsers(count);
+      } else if (data.startsWith("NEW_MESSAGE:")) {
+        // Parse the new message JSON
+        try {
+          const messageJson = data.replace("NEW_MESSAGE:", "");
+          const newMessage: ChatMessage = JSON.parse(messageJson);
+          
+          setMessages((prev) => {
+            const newMessages = [...prev, newMessage];
+            // Update cache with new message
+            if (courseId) {
+              chatHistoryCache.set(courseId, newMessages);
+              cacheTimestamps.set(courseId, Date.now());
+            }
+            return newMessages;
+          });
+        } catch (error) {
+          console.error("Error parsing new message:", error);
+          // Fallback to refetching if parsing fails
+          if (courseId) {
+            fetchChatHistory(courseId);
+          }
+        }
+      } else if (data.startsWith("MESSAGE_UPDATED:")) {
+        // Handle message edits
+        try {
+          const messageJson = data.replace("MESSAGE_UPDATED:", "");
+          const updatedMessage: ChatMessage = JSON.parse(messageJson);
+          
+          setMessages((prev) => {
+            const newMessages = prev.map((msg) => 
+              msg.id === updatedMessage.id ? updatedMessage : msg
+            );
+            // Update cache
+            if (courseId) {
+              chatHistoryCache.set(courseId, newMessages);
+              cacheTimestamps.set(courseId, Date.now());
+            }
+            return newMessages;
+          });
+        } catch (error) {
+          console.error("Error parsing updated message:", error);
+        }
+      } else if (data.startsWith("MESSAGE_DELETED:")) {
+        // Handle message deletes
+        try {
+          const messageId = parseInt(data.replace("MESSAGE_DELETED:", ""));
+          
+          setMessages((prev) => {
+            const newMessages = prev.filter((msg) => msg.id !== messageId);
+            // Update cache
+            if (courseId) {
+              chatHistoryCache.set(courseId, newMessages);
+              cacheTimestamps.set(courseId, Date.now());
+            }
+            return newMessages;
+          });
+        } catch (error) {
+          console.error("Error parsing deleted message ID:", error);
+        }
       } else if (data.startsWith("MESSAGE:")) {
+        // Fallback for old format messages - parse manually
         const message = data.replace("MESSAGE:", "");
-        setMessages((prev) => {
-          const newMessages = [...prev, message];
-          // Update cache with new message
-          if (courseId) {
-            chatHistoryCache.set(courseId, newMessages);
-            cacheTimestamps.set(courseId, Date.now());
-          }
-          return newMessages;
-        });
+        const parts = message.split(": ", 2);
+        if (parts.length === 2) {
+          const [displayName, content] = parts;
+          const fallbackMessage: ChatMessage = {
+            id: Date.now(), // Temporary ID
+            senderId: "unknown",
+            displayName: displayName,
+            content: content,
+            isAnonymous: false,
+            timestamp: new Date().toISOString(),
+            courseId: courseId || 0,
+            isDeleted: false
+          };
+          
+          setMessages((prev) => {
+            const newMessages = [...prev, fallbackMessage];
+            if (courseId) {
+              chatHistoryCache.set(courseId, newMessages);
+              cacheTimestamps.set(courseId, Date.now());
+            }
+            return newMessages;
+          });
+        }
       } else {
-        // Fallback for old format messages
-        setMessages((prev) => {
-          const newMessages = [...prev, data];
-          if (courseId) {
-            chatHistoryCache.set(courseId, newMessages);
-            cacheTimestamps.set(courseId, Date.now());
-          }
-          return newMessages;
-        });
+        // Unknown message format - log and ignore
+        console.warn("Unknown WebSocket message format:", data);
       }
     };
 
@@ -145,7 +210,7 @@ export function useChatSocket(
     socketRef.current.onerror = (error) => {
       console.error("WebSocket error:", error);
     };
-  }, [url, courseId, isAnonymous]);
+  }, [url, courseId, isAnonymous, fetchChatHistory]);
 
   useEffect(() => {
     // Clear messages and user count when course changes
@@ -192,5 +257,60 @@ export function useChatSocket(
     }
   }, []);
 
-  return { messages, sendMessage, isLoading, connectedUsers };
+  const editMessage = useCallback(async (messageId: number, newContent: string) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ content: newContent }),
+        }
+      );
+
+      if (response.ok) {
+        // Don't update local state - WebSocket will handle the real-time update
+        return { success: true };
+      } else {
+        const errorData = await response.json();
+        return { success: false, error: errorData.message || "Failed to edit message" };
+      }
+    } catch (error) {
+      console.error("Error editing message:", error);
+      return { success: false, error: "Network error" };
+    }
+  }, []);
+
+  const deleteMessage = useCallback(async (messageId: number) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        // Don't update local state - WebSocket will handle the real-time update
+        return { success: true };
+      } else {
+        const errorData = await response.json();
+        return { success: false, error: errorData.message || "Failed to delete message" };
+      }
+    } catch (error) {
+      console.error("Error deleting message:", error);
+      return { success: false, error: "Network error" };
+    }
+  }, []);
+
+  return { messages, sendMessage, editMessage, deleteMessage, isLoading, connectedUsers };
 }

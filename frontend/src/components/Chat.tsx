@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Typography, Switch, FormControlLabel, Chip } from "@mui/material";
+import { Typography, Switch, FormControlLabel, Chip, IconButton, Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField } from "@mui/material";
+import { Edit, Delete } from "@mui/icons-material";
 import { useChatSocket } from "../hooks/useChatSocket";
 import { useCourses } from "../hooks/useCourses";
 
@@ -13,6 +14,8 @@ export default function Chat({ wsBase }: ChatProps) {
   const [isAnonymous, setIsAnonymous] = useState(false);
   const [preferencesLoaded, setPreferencesLoaded] = useState(false);
   const [anonymousName, setAnonymousName] = useState<string>("");
+  const [editingMessage, setEditingMessage] = useState<{ id: number; content: string } | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const chatContainerRef = useRef<HTMLDivElement>(null);
 
   // Use the shared course context instead of fetching again
@@ -26,7 +29,7 @@ export default function Chat({ wsBase }: ChatProps) {
     selectedCourse && preferencesLoaded
       ? `${wsBase}?courseId=${selectedCourse}`
       : null;
-  const { messages, sendMessage, isLoading, connectedUsers } = useChatSocket(
+  const { messages, sendMessage, editMessage, deleteMessage, isLoading, connectedUsers } = useChatSocket(
     wsUrl,
     selectedCourse,
     isAnonymous
@@ -113,6 +116,46 @@ export default function Chat({ wsBase }: ChatProps) {
       setInput("");
     }
   };
+
+  const handleEditMessage = (messageId: number, currentContent: string) => {
+    setEditingMessage({ id: messageId, content: currentContent });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingMessage) {
+      const result = await editMessage(editingMessage.id, editingMessage.content);
+      if (result.success) {
+        setIsEditDialogOpen(false);
+        setEditingMessage(null);
+      } else {
+        alert(result.error || "Failed to edit message");
+      }
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      const result = await deleteMessage(messageId);
+      if (!result.success) {
+        alert(result.error || "Failed to delete message");
+      }
+    }
+  };
+
+  const getCurrentUserId = () => {
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) return null;
+      
+      const payload = JSON.parse(atob(token.split('.')[1]));
+      return payload["http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"] || payload.sub;
+    } catch {
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
 
   const handleCourseChange = (courseId: number) => {
     setSelectedCourse(courseId);
@@ -280,18 +323,58 @@ export default function Chat({ wsBase }: ChatProps) {
                 No messages yet. Start the conversation!
               </div>
             ) : (
-              messages.map((msg, i) => (
+              messages.map((msg) => (
                 <div
-                  key={i}
+                  key={msg.id}
                   style={{
                     marginBottom: "8px",
-                    padding: "5px",
+                    padding: "8px",
                     backgroundColor: "white",
-                    borderRadius: "3px",
+                    borderRadius: "5px",
                     borderLeft: "3px solid #007acc",
+                    position: "relative",
                   }}
                 >
-                  {msg}
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: "bold", marginBottom: "4px", fontSize: "14px" }}>
+                        {msg.displayName}
+                        {msg.editedAt && (
+                          <span style={{ 
+                            fontWeight: "normal", 
+                            fontStyle: "italic", 
+                            color: "#666", 
+                            fontSize: "12px",
+                            marginLeft: "8px"
+                          }}>
+                            (edited)
+                          </span>
+                        )}
+                      </div>
+                      <div style={{ color: "#333", lineHeight: "1.4" }}>{msg.content}</div>
+                      <div style={{ fontSize: "11px", color: "#999", marginTop: "4px" }}>
+                        {new Date(msg.timestamp).toLocaleString()}
+                      </div>
+                    </div>
+                    {currentUserId === msg.senderId && (
+                      <div style={{ display: "flex", gap: "4px", marginLeft: "8px" }}>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleEditMessage(msg.id, msg.content)}
+                          style={{ padding: "4px" }}
+                        >
+                          <Edit fontSize="small" />
+                        </IconButton>
+                        <IconButton
+                          size="small"
+                          onClick={() => handleDeleteMessage(msg.id)}
+                          style={{ padding: "4px" }}
+                        >
+                          <Delete fontSize="small" />
+                        </IconButton>
+                      </div>
+                    )}
+                  </div>
                 </div>
               ))
             )}
@@ -325,6 +408,26 @@ export default function Chat({ wsBase }: ChatProps) {
           </div>
         </>
       )}
+
+      {/* Edit Message Dialog */}
+      <Dialog open={isEditDialogOpen} onClose={() => setIsEditDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Edit Message</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            margin="dense"
+            fullWidth
+            multiline
+            rows={3}
+            value={editingMessage?.content || ""}
+            onChange={(e) => setEditingMessage(prev => prev ? { ...prev, content: e.target.value } : null)}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveEdit} variant="contained">Save</Button>
+        </DialogActions>
+      </Dialog>
     </div>
   );
 }
