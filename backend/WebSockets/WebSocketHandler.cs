@@ -298,7 +298,7 @@ namespace backend.WebSockets
                             Timestamp = DateTime.UtcNow,
                             CourseId = courseId
                         };
-                        
+
                         await chatRepository.AddMessageAsync(chatMessage);
 
                         // Send the complete message object as JSON for real-time updates
@@ -314,7 +314,7 @@ namespace backend.WebSockets
                             editedAt = (string?)null,
                             isDeleted = false
                         };
-                        
+
                         var jsonMessage = System.Text.Json.JsonSerializer.Serialize(messageDto);
                         var formattedMessage = $"NEW_MESSAGE:{jsonMessage}";
                         var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);

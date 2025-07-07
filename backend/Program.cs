@@ -128,7 +128,7 @@ namespace backend
                     var courseRepo = context.RequestServices.GetRequiredService<ICourseRepository>();
                     var anonymousNameService = context.RequestServices.GetRequiredService<IAnonymousNameService>();
                     var userRepo = context.RequestServices.GetRequiredService<IUserRepository>();
-                    
+
                     // Perform validation first
                     var validationResult = await WebSocketHandler.ValidateWebSocketConnectionAsync(context, courseRepo);
                     if (!validationResult.IsValid)
@@ -137,7 +137,7 @@ namespace backend
                         await context.Response.WriteAsync(validationResult.ErrorMessage);
                         return;
                     }
-                    
+
                     // Only accept WebSocket connection if validation passes
                     using var webSocket = await context.WebSockets.AcceptWebSocketAsync();
                     await WebSocketHandler.HandleChatConnectionAsync(context, webSocket, chatRepo, courseRepo, anonymousNameService, userRepo);

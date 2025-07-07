@@ -107,7 +107,7 @@ export function useChatSocket(
         try {
           const messageJson = data.replace("NEW_MESSAGE:", "");
           const newMessage: ChatMessage = JSON.parse(messageJson);
-          
+
           setMessages((prev) => {
             const newMessages = [...prev, newMessage];
             // Update cache with new message
@@ -129,9 +129,9 @@ export function useChatSocket(
         try {
           const messageJson = data.replace("MESSAGE_UPDATED:", "");
           const updatedMessage: ChatMessage = JSON.parse(messageJson);
-          
+
           setMessages((prev) => {
-            const newMessages = prev.map((msg) => 
+            const newMessages = prev.map((msg) =>
               msg.id === updatedMessage.id ? updatedMessage : msg
             );
             // Update cache
@@ -148,7 +148,7 @@ export function useChatSocket(
         // Handle message deletes
         try {
           const messageId = parseInt(data.replace("MESSAGE_DELETED:", ""));
-          
+
           setMessages((prev) => {
             const newMessages = prev.filter((msg) => msg.id !== messageId);
             // Update cache
@@ -175,9 +175,9 @@ export function useChatSocket(
             isAnonymous: false,
             timestamp: new Date().toISOString(),
             courseId: courseId || 0,
-            isDeleted: false
+            isDeleted: false,
           };
-          
+
           setMessages((prev) => {
             const newMessages = [...prev, fallbackMessage];
             if (courseId) {
@@ -257,33 +257,39 @@ export function useChatSocket(
     }
   }, []);
 
-  const editMessage = useCallback(async (messageId: number, newContent: string) => {
-    try {
-      const token = localStorage.getItem("jwt");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
-        {
-          method: "PUT",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ content: newContent }),
-        }
-      );
+  const editMessage = useCallback(
+    async (messageId: number, newContent: string) => {
+      try {
+        const token = localStorage.getItem("jwt");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
+          {
+            method: "PUT",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify({ content: newContent }),
+          }
+        );
 
-      if (response.ok) {
-        // Don't update local state - WebSocket will handle the real-time update
-        return { success: true };
-      } else {
-        const errorData = await response.json();
-        return { success: false, error: errorData.message || "Failed to edit message" };
+        if (response.ok) {
+          // Don't update local state - WebSocket will handle the real-time update
+          return { success: true };
+        } else {
+          const errorData = await response.json();
+          return {
+            success: false,
+            error: errorData.message || "Failed to edit message",
+          };
+        }
+      } catch (error) {
+        console.error("Error editing message:", error);
+        return { success: false, error: "Network error" };
       }
-    } catch (error) {
-      console.error("Error editing message:", error);
-      return { success: false, error: "Network error" };
-    }
-  }, []);
+    },
+    []
+  );
 
   const deleteMessage = useCallback(async (messageId: number) => {
     try {
@@ -304,7 +310,10 @@ export function useChatSocket(
         return { success: true };
       } else {
         const errorData = await response.json();
-        return { success: false, error: errorData.message || "Failed to delete message" };
+        return {
+          success: false,
+          error: errorData.message || "Failed to delete message",
+        };
       }
     } catch (error) {
       console.error("Error deleting message:", error);
@@ -312,5 +321,12 @@ export function useChatSocket(
     }
   }, []);
 
-  return { messages, sendMessage, editMessage, deleteMessage, isLoading, connectedUsers };
+  return {
+    messages,
+    sendMessage,
+    editMessage,
+    deleteMessage,
+    isLoading,
+    connectedUsers,
+  };
 }
