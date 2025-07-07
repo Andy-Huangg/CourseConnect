@@ -267,6 +267,11 @@ export default function Chat({ wsBase }: ChatProps) {
                   <option key={course.id} value={course.id}>
                     {course.name}
                     {course.id === 1 ? " (Global Chat)" : ""}
+                    {course.userCount !== undefined
+                      ? ` (${course.userCount} ${
+                          course.userCount === 1 ? "user" : "users"
+                        })`
+                      : ""}
                   </option>
                 ))}
               </select>

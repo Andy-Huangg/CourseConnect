@@ -21,6 +21,7 @@ import { useCourses } from "../hooks/useCourses";
 interface Course {
   id: number;
   name: string;
+  userCount?: number;
 }
 
 export default function CourseEnrollment() {
@@ -186,7 +187,13 @@ export default function CourseEnrollment() {
               {displayEnrolledCourses.map((course) => (
                 <Chip
                   key={course.id}
-                  label={course.name}
+                  label={`${course.name}${
+                    course.userCount !== undefined
+                      ? ` (${course.userCount} ${
+                          course.userCount === 1 ? "user" : "users"
+                        })`
+                      : ""
+                  }`}
                   color="primary"
                   icon={<Check />}
                   sx={{ fontSize: "0.9rem" }}
@@ -234,14 +241,27 @@ export default function CourseEnrollment() {
                 <Typography variant="h6" component="div" sx={{ mb: 1 }}>
                   {course.name}
                 </Typography>
-                {isEnrolled && (
-                  <Chip
-                    label="Enrolled"
-                    color="primary"
-                    size="small"
-                    icon={<Check />}
-                  />
-                )}
+                <Box
+                  sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}
+                >
+                  {isEnrolled && (
+                    <Chip
+                      label="Enrolled"
+                      color="primary"
+                      size="small"
+                      icon={<Check />}
+                    />
+                  )}
+                  {course.userCount !== undefined && (
+                    <Chip
+                      label={`${course.userCount} ${
+                        course.userCount === 1 ? "user" : "users"
+                      }`}
+                      variant="outlined"
+                      size="small"
+                    />
+                  )}
+                </Box>
               </CardContent>
               <Box sx={{ p: 2, pt: 0 }}>
                 <Button

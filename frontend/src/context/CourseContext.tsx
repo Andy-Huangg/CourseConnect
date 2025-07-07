@@ -3,6 +3,7 @@ import React, { createContext, useState, useEffect, useCallback } from "react";
 interface Course {
   id: number;
   name: string;
+  userCount?: number;
 }
 
 interface CourseContextType {
