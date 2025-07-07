@@ -155,6 +155,13 @@ namespace backend.Repositories
                 .AnyAsync(c => c.Id == courseId);
         }
 
+        public async Task<int> GetUserCountAsync(int courseId)
+        {
+            return await _context.User
+                .Where(u => u.Courses.Any(c => c.Id == courseId))
+                .CountAsync();
+        }
+
         private static string NormalizeName(string name)
         {
             // Convert to lowercase and remove all spaces for comparison

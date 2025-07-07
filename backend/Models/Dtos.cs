@@ -4,6 +4,7 @@ namespace backend.Models
     {
         public int Id { get; set; }
         public required string Name { get; set; }
+        public int UserCount { get; set; }
     }
 
     public class UserDto

@@ -23,9 +23,19 @@ namespace backend.Controllers
         {
             var courses = await _courseRepo.GetAllAsync();
             // Exclude Global course (courseId = 1) from the list since users are automatically enrolled
-            var courseDtos = courses
-                .Where(c => c.Id != 1)
-                .Select(c => new CourseDto { Id = c.Id, Name = c.Name });
+            var courseDtos = new List<CourseDto>();
+
+            foreach (var course in courses.Where(c => c.Id != 1))
+            {
+                var userCount = await _courseRepo.GetUserCountAsync(course.Id);
+                courseDtos.Add(new CourseDto
+                {
+                    Id = course.Id,
+                    Name = course.Name,
+                    UserCount = userCount
+                });
+            }
+
             return Ok(courseDtos);
         }
 
@@ -38,7 +48,13 @@ namespace backend.Controllers
             {
                 return NotFound();
             }
-            var courseDto = new CourseDto { Id = course.Id, Name = course.Name };
+            var userCount = await _courseRepo.GetUserCountAsync(course.Id);
+            var courseDto = new CourseDto
+            {
+                Id = course.Id,
+                Name = course.Name,
+                UserCount = userCount
+            };
             return Ok(courseDto);
         }
 
@@ -75,7 +91,13 @@ namespace backend.Controllers
             {
                 return NotFound();
             }
-            var courseDto = new CourseDto { Id = course.Id, Name = course.Name };
+            var userCount = await _courseRepo.GetUserCountAsync(course.Id);
+            var courseDto = new CourseDto
+            {
+                Id = course.Id,
+                Name = course.Name,
+                UserCount = userCount
+            };
             return Ok(courseDto);
         }
 
@@ -90,7 +112,19 @@ namespace backend.Controllers
             }
 
             var courses = await _courseRepo.GetCoursesByUserIdAsync(userId);
-            var courseDtos = courses.Select(c => new CourseDto { Id = c.Id, Name = c.Name });
+            var courseDtos = new List<CourseDto>();
+
+            foreach (var course in courses)
+            {
+                var userCount = await _courseRepo.GetUserCountAsync(course.Id);
+                courseDtos.Add(new CourseDto
+                {
+                    Id = course.Id,
+                    Name = course.Name,
+                    UserCount = userCount
+                });
+            }
+
             return Ok(courseDtos);
         }
 
