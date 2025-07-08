@@ -460,5 +460,58 @@ namespace backend.WebSockets
                 }
             }
         }
+
+        public static async Task BroadcastStudyBuddyUpdate(int userId, int courseId, string updateType, StudyBuddy? studyBuddy = null)
+        {
+            var message = new
+            {
+                type = "STUDY_BUDDY_UPDATE",
+                userId = userId,
+                courseId = courseId,
+                updateType = updateType, // "MATCHED", "DISCONNECTED", "OPTED_IN", "OPTED_OUT"
+                studyBuddy = studyBuddy != null ? new
+                {
+                    id = studyBuddy.Id,
+                    courseId = studyBuddy.CourseId,
+                    isOptedIn = studyBuddy.IsOptedIn,
+                    buddy = studyBuddy.Buddy != null ? new
+                    {
+                        id = studyBuddy.Buddy.Id,
+                        username = studyBuddy.Buddy.Username,
+                        displayName = studyBuddy.Buddy.DisplayName
+                    } : null,
+                    matchedAt = studyBuddy.MatchedAt,
+                    contactPreference = studyBuddy.ContactPreference
+                } : null
+            };
+
+            var jsonMessage = System.Text.Json.JsonSerializer.Serialize(message);
+            var sendBuffer = Encoding.UTF8.GetBytes(jsonMessage);
+
+            // Send to all users connected to the Global course (courseId 1) 
+            // since that's where StudyBuddy components listen for updates
+            const int globalCourseId = 1;
+            if (_courseClients.ContainsKey(globalCourseId))
+            {
+                var openClients = _courseClients[globalCourseId].Where(c => c.State == WebSocketState.Open).ToList();
+                
+                Console.WriteLine($"Broadcasting study buddy update to {openClients.Count} clients on Global course");
+                
+                foreach (var client in openClients)
+                {
+                    try
+                    {
+                        await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                               WebSocketMessageType.Text,
+                                               true,
+                                               CancellationToken.None);
+                    }
+                    catch
+                    {
+                        // Ignore errors for disconnected clients
+                    }
+                }
+            }
+        }
     }
 }

@@ -1,5 +1,6 @@
 using backend.Models;
 using Microsoft.EntityFrameworkCore;
+using backend.WebSockets;
 
 namespace backend.Repositories
 {
@@ -54,6 +55,16 @@ namespace backend.Repositories
                 existingRecord.CreatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
+                
+                // Try to find a match when opting back in
+                await TryCreateMatchAsync(existingRecord);
+                
+                // Reload the entity to get the updated buddy information
+                await _context.Entry(existingRecord).ReloadAsync();
+                
+                // Broadcast opt-in update
+                await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_IN", existingRecord);
+                
                 return existingRecord;
             }
             else
@@ -73,6 +84,12 @@ namespace backend.Repositories
 
                 // Try to find a match immediately
                 await TryCreateMatchAsync(studyBuddy);
+                
+                // Reload the entity to get the updated buddy information
+                await _context.Entry(studyBuddy).ReloadAsync();
+
+                // Broadcast opt-in update
+                await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_IN", studyBuddy);
 
                 return studyBuddy;
             }
@@ -94,6 +111,10 @@ namespace backend.Repositories
             studyBuddy.MatchedAt = null;
 
             await _context.SaveChangesAsync();
+            
+            // Broadcast opt-out update
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_OUT");
+            
             return true;
         }
 
@@ -123,6 +144,11 @@ namespace backend.Repositories
             studyBuddy2.MatchedAt = matchedAt;
 
             await _context.SaveChangesAsync();
+
+            // Notify both users about the match via WebSocket
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId1, courseId, "MATCHED", studyBuddy1);
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId2, courseId, "MATCHED", studyBuddy2);
+
             return true;
         }
 
@@ -145,6 +171,14 @@ namespace backend.Repositories
             }
 
             await _context.SaveChangesAsync();
+
+            // Notify both users about the disconnection via WebSocket
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "DISCONNECTED", studyBuddy);
+            if (buddy != null)
+            {
+                await WebSocketHandler.BroadcastStudyBuddyUpdate(buddyId, courseId, "DISCONNECTED", buddy);
+            }
+
             return true;
         }
 
