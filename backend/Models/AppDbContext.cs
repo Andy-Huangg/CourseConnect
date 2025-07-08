@@ -11,6 +11,7 @@ namespace backend.Models
         public DbSet<User> User { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<Course> Courses { get; set; }
+        public DbSet<StudyBuddy> StudyBuddies { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -32,6 +33,30 @@ namespace backend.Models
             // Add unique constraint for course names (case-insensitive)
             modelBuilder.Entity<Course>()
                 .HasIndex(c => c.Name)
+                .IsUnique();
+
+            // Configure StudyBuddy relationships
+            modelBuilder.Entity<StudyBuddy>()
+                .HasOne(sb => sb.User)
+                .WithMany()
+                .HasForeignKey(sb => sb.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<StudyBuddy>()
+                .HasOne(sb => sb.Course)
+                .WithMany()
+                .HasForeignKey(sb => sb.CourseId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<StudyBuddy>()
+                .HasOne(sb => sb.Buddy)
+                .WithMany()
+                .HasForeignKey(sb => sb.BuddyId)
+                .OnDelete(DeleteBehavior.SetNull);
+
+            // Ensure one study buddy record per user per course
+            modelBuilder.Entity<StudyBuddy>()
+                .HasIndex(sb => new { sb.UserId, sb.CourseId })
                 .IsUnique();
         }
     }
