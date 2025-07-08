@@ -40,7 +40,7 @@ export function useStudyBuddySocket(
 
     // Connect to course 1 (Global) to receive study buddy updates for all courses
     const wsUrl = `${import.meta.env.VITE_WS_URL}?courseId=1&token=${token}`;
-    
+
     socketRef.current = new WebSocket(wsUrl);
 
     socketRef.current.onopen = () => {
@@ -51,7 +51,7 @@ export function useStudyBuddySocket(
     socketRef.current.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         if (data.type === "STUDY_BUDDY_UPDATE") {
           onStudyBuddyUpdate(data as StudyBuddyUpdateMessage);
         }
@@ -63,7 +63,7 @@ export function useStudyBuddySocket(
 
     socketRef.current.onclose = () => {
       console.log("Study buddy WebSocket disconnected");
-      
+
       // Attempt to reconnect with exponential backoff
       if (reconnectAttemptsRef.current < 5) {
         const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;

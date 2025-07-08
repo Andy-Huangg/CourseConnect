@@ -55,16 +55,16 @@ namespace backend.Repositories
                 existingRecord.CreatedAt = DateTime.UtcNow;
 
                 await _context.SaveChangesAsync();
-                
+
                 // Try to find a match when opting back in
                 await TryCreateMatchAsync(existingRecord);
-                
+
                 // Reload the entity to get the updated buddy information
                 await _context.Entry(existingRecord).ReloadAsync();
-                
+
                 // Broadcast opt-in update
                 await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_IN", existingRecord);
-                
+
                 return existingRecord;
             }
             else
@@ -84,7 +84,7 @@ namespace backend.Repositories
 
                 // Try to find a match immediately
                 await TryCreateMatchAsync(studyBuddy);
-                
+
                 // Reload the entity to get the updated buddy information
                 await _context.Entry(studyBuddy).ReloadAsync();
 
@@ -111,10 +111,10 @@ namespace backend.Repositories
             studyBuddy.MatchedAt = null;
 
             await _context.SaveChangesAsync();
-            
+
             // Broadcast opt-out update
             await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_OUT");
-            
+
             return true;
         }
 

@@ -16,7 +16,10 @@ import {
 } from "@mui/material";
 import { People, PersonAdd, PersonRemove } from "@mui/icons-material";
 import { useCourses } from "../hooks/useCourses";
-import { useStudyBuddySocket, type StudyBuddyUpdateMessage } from "../hooks/useStudyBuddySocket";
+import {
+  useStudyBuddySocket,
+  type StudyBuddyUpdateMessage,
+} from "../hooks/useStudyBuddySocket";
 
 interface StudyBuddy {
   id: number;
@@ -95,58 +98,78 @@ export default function StudyBuddy() {
   }, []);
 
   // Handle study buddy WebSocket updates
-  const handleStudyBuddyUpdate = useCallback((update: StudyBuddyUpdateMessage) => {
-    const currentUserId = getCurrentUserId();
-    
-    // Check if this update affects any course the user is enrolled in
-    const isRelevantCourse = enrolledCourses.some(course => course.id === update.courseId);
-    
-    if (isRelevantCourse) {
-      console.log("Received study buddy update:", update);
-      
-      // Update state directly based on the WebSocket message
-      if (update.studyBuddy) {
-        setStudyBuddies(prev => {
-          const existing = prev.find(sb => sb.courseId === update.courseId && sb.id === update.studyBuddy!.id);
-          if (existing) {
-            // Update existing record
-            return prev.map(sb => 
-              sb.id === update.studyBuddy!.id ? { 
-                ...update.studyBuddy!, 
-                courseName: existing.courseName // Preserve courseName 
-              } : sb
+  const handleStudyBuddyUpdate = useCallback(
+    (update: StudyBuddyUpdateMessage) => {
+      const currentUserId = getCurrentUserId();
+
+      // Check if this update affects any course the user is enrolled in
+      const isRelevantCourse = enrolledCourses.some(
+        (course) => course.id === update.courseId
+      );
+
+      if (isRelevantCourse) {
+        console.log("Received study buddy update:", update);
+
+        // Update state directly based on the WebSocket message
+        if (update.studyBuddy) {
+          setStudyBuddies((prev) => {
+            const existing = prev.find(
+              (sb) =>
+                sb.courseId === update.courseId &&
+                sb.id === update.studyBuddy!.id
             );
-          } else {
-            // Check if this is for the current user and add if so
-            if (update.userId === parseInt(currentUserId)) {
-              const course = enrolledCourses.find(c => c.id === update.courseId);
-              return [...prev, { 
-                ...update.studyBuddy!, 
-                courseName: course?.name || `Course ${update.courseId}`
-              }];
+            if (existing) {
+              // Update existing record
+              return prev.map((sb) =>
+                sb.id === update.studyBuddy!.id
+                  ? {
+                      ...update.studyBuddy!,
+                      courseName: existing.courseName, // Preserve courseName
+                    }
+                  : sb
+              );
+            } else {
+              // Check if this is for the current user and add if so
+              if (update.userId === parseInt(currentUserId)) {
+                const course = enrolledCourses.find(
+                  (c) => c.id === update.courseId
+                );
+                return [
+                  ...prev,
+                  {
+                    ...update.studyBuddy!,
+                    courseName: course?.name || `Course ${update.courseId}`,
+                  },
+                ];
+              }
+              return prev;
             }
-            return prev;
+          });
+        } else {
+          // If no studyBuddy data, handle based on update type
+          switch (update.updateType) {
+            case "OPTED_OUT":
+              if (update.userId === parseInt(currentUserId)) {
+                setStudyBuddies((prev) =>
+                  prev.filter((sb) => sb.courseId !== update.courseId)
+                );
+              }
+              break;
+            case "DISCONNECTED":
+              setStudyBuddies((prev) =>
+                prev.map((sb) =>
+                  sb.courseId === update.courseId
+                    ? { ...sb, buddy: undefined, matchedAt: undefined }
+                    : sb
+                )
+              );
+              break;
           }
-        });
-      } else {
-        // If no studyBuddy data, handle based on update type
-        switch (update.updateType) {
-          case "OPTED_OUT":
-            if (update.userId === parseInt(currentUserId)) {
-              setStudyBuddies(prev => prev.filter(sb => sb.courseId !== update.courseId));
-            }
-            break;
-          case "DISCONNECTED":
-            setStudyBuddies(prev => prev.map(sb => 
-              sb.courseId === update.courseId 
-                ? { ...sb, buddy: undefined, matchedAt: undefined }
-                : sb
-            ));
-            break;
         }
       }
-    }
-  }, [enrolledCourses]);
+    },
+    [enrolledCourses]
+  );
 
   useStudyBuddySocket(handleStudyBuddyUpdate);
 
@@ -178,13 +201,13 @@ export default function StudyBuddy() {
 
       if (response.ok) {
         const updatedStudyBuddy = await response.json();
-        
+
         // Update the specific study buddy in the list
-        setStudyBuddies(prev => {
-          const existing = prev.find(sb => sb.courseId === courseId);
+        setStudyBuddies((prev) => {
+          const existing = prev.find((sb) => sb.courseId === courseId);
           if (existing) {
             // Update existing record
-            return prev.map(sb => 
+            return prev.map((sb) =>
               sb.courseId === courseId ? updatedStudyBuddy : sb
             );
           } else {
@@ -192,7 +215,7 @@ export default function StudyBuddy() {
             return [...prev, updatedStudyBuddy];
           }
         });
-        
+
         setIsOptInDialogOpen(false);
         setContactPreference("");
         setSelectedCourse(null);

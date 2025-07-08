@@ -494,9 +494,9 @@ namespace backend.WebSockets
             if (_courseClients.ContainsKey(globalCourseId))
             {
                 var openClients = _courseClients[globalCourseId].Where(c => c.State == WebSocketState.Open).ToList();
-                
+
                 Console.WriteLine($"Broadcasting study buddy update to {openClients.Count} clients on Global course");
-                
+
                 foreach (var client in openClients)
                 {
                     try
