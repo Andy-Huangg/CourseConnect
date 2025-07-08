@@ -6,6 +6,7 @@ import { logout } from "../auth/authSlice";
 import ThemeToggle from "../components/ThemeToggle";
 import Chat from "../components/Chat";
 import CourseEnrollment from "../components/CourseEnrollment";
+import StudyBuddy from "../components/StudyBuddy";
 
 interface TabPanelProps {
   children?: React.ReactNode;
@@ -79,6 +80,7 @@ export default function Home() {
           >
             <Tab label="My Courses" {...a11yProps(0)} />
             <Tab label="Chat" {...a11yProps(1)} />
+            <Tab label="Study Buddies" {...a11yProps(2)} />
           </Tabs>
         </Box>
 
@@ -88,6 +90,10 @@ export default function Home() {
 
         <TabPanel value={tabValue} index={1}>
           <Chat wsBase={import.meta.env.VITE_WS_URL} />
+        </TabPanel>
+
+        <TabPanel value={tabValue} index={2}>
+          <StudyBuddy />
         </TabPanel>
       </Paper>
     </Box>
