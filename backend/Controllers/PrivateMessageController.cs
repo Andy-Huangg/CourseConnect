@@ -1,5 +1,6 @@
 using backend.Models;
 using backend.Repositories;
+using backend.WebSockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -85,7 +86,8 @@ namespace backend.Controllers
 
             var savedMessage = await _privateMessageRepo.AddMessageAsync(message);
 
-            // TODO: Broadcast via WebSocket to recipient
+            // Broadcast via WebSocket to both sender and recipient
+            await WebSocketHandler.BroadcastPrivateMessage(userId, dto.RecipientId, savedMessage);
 
             var messageDto = new PrivateMessageDto
             {
@@ -132,7 +134,15 @@ namespace backend.Controllers
                 return BadRequest("Failed to update message");
             }
 
-            // TODO: Broadcast edit via WebSocket
+            // Reload the message to get updated data with related entities
+            var updatedMessage = await _privateMessageRepo.GetMessageByIdAsync(messageId);
+            if (updatedMessage == null)
+            {
+                return BadRequest("Failed to retrieve updated message");
+            }
+
+            // Broadcast edit via WebSocket
+            await WebSocketHandler.BroadcastPrivateMessageUpdate(userId, updatedMessage.RecipientId, updatedMessage);
 
             return Ok(new { success = true, message = "Message updated successfully" });
         }
@@ -165,7 +175,8 @@ namespace backend.Controllers
                 return BadRequest("Failed to delete message");
             }
 
-            // TODO: Broadcast delete via WebSocket
+            // Broadcast delete via WebSocket
+            await WebSocketHandler.BroadcastPrivateMessageDelete(userId, message.RecipientId, messageId);
 
             return Ok(new { success = true, message = "Message deleted successfully" });
         }
@@ -185,6 +196,14 @@ namespace backend.Controllers
             if (!success)
             {
                 return BadRequest("Failed to mark message as read");
+            }
+
+            // Get the message to find the sender
+            var message = await _privateMessageRepo.GetMessageByIdAsync(messageId);
+            if (message != null)
+            {
+                // Broadcast read status to sender
+                await WebSocketHandler.BroadcastPrivateMessageRead(message.SenderId, messageId);
             }
 
             return Ok(new { success = true, message = "Message marked as read" });

@@ -16,35 +16,42 @@ namespace backend.WebSockets
         private static readonly Dictionary<int, HashSet<int>> _courseUsers = new();
         // Track which websocket belongs to which user for better cleanup
         private static readonly Dictionary<WebSocket, (int courseId, int userId)> _socketUserMap = new();
+        private static readonly object _lock = new object(); // Add thread safety
 
         private static async Task BroadcastUserCount(int courseId)
         {
-            // Clean up disconnected clients before getting count
-            CleanupClosedConnections(courseId);
+            int userCount;
+            List<WebSocket> openClients;
 
-            var userCount = _courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0;
-            Console.WriteLine($"Broadcasting user count for course {courseId}: {userCount} users");
+            lock (_lock)
+            {
+                // Clean up disconnected clients before getting count
+                CleanupClosedConnections(courseId);
+
+                userCount = _courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0;
+                Console.WriteLine($"Broadcasting user count for course {courseId}: {userCount} users");
+
+                openClients = _courseClients.ContainsKey(courseId) 
+                    ? _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList()
+                    : new List<WebSocket>();
+            }
+
             var userCountMessage = $"USER_COUNT:{userCount}";
             var sendBuffer = Encoding.UTF8.GetBytes(userCountMessage);
 
-            if (_courseClients.ContainsKey(courseId))
+            Console.WriteLine($"Sending to {openClients.Count} clients");
+            foreach (var client in openClients)
             {
-                var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
-
-                Console.WriteLine($"Sending to {openClients.Count} clients");
-                foreach (var client in openClients)
+                try
                 {
-                    try
-                    {
-                        await client.SendAsync(new ArraySegment<byte>(sendBuffer),
-                                               WebSocketMessageType.Text,
-                                               true,
-                                               CancellationToken.None);
-                    }
-                    catch
-                    {
-                        // Ignore errors for disconnected clients
-                    }
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
                 }
             }
         }
@@ -167,8 +174,15 @@ namespace backend.WebSockets
 
         public static async Task BroadcastMessageUpdate(int courseId, ChatMessage message)
         {
-            if (!_courseClients.ContainsKey(courseId))
-                return;
+            List<WebSocket> openClients;
+            
+            lock (_lock)
+            {
+                if (!_courseClients.ContainsKey(courseId))
+                    return;
+
+                openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
+            }
 
             var messageDto = new
             {
@@ -187,7 +201,6 @@ namespace backend.WebSockets
             var formattedMessage = $"MESSAGE_UPDATED:{jsonMessage}";
             var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
 
-            var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
             foreach (var client in openClients)
             {
                 try
@@ -206,13 +219,19 @@ namespace backend.WebSockets
 
         public static async Task BroadcastMessageDelete(int courseId, int messageId)
         {
-            if (!_courseClients.ContainsKey(courseId))
-                return;
+            List<WebSocket> openClients;
+            
+            lock (_lock)
+            {
+                if (!_courseClients.ContainsKey(courseId))
+                    return;
+
+                openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
+            }
 
             var formattedMessage = $"MESSAGE_DELETED:{messageId}";
             var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
 
-            var openClients = _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList();
             foreach (var client in openClients)
             {
                 try
@@ -240,40 +259,43 @@ namespace backend.WebSockets
 
             Console.WriteLine($"User {userId} connecting to course {courseId} (anonymous: {isAnonymousMode})");
 
-            if (!_courseClients.ContainsKey(courseId))
-                _courseClients[courseId] = new List<WebSocket>();
-
-            if (!_courseUsers.ContainsKey(courseId))
-                _courseUsers[courseId] = new HashSet<int>();
-
-            // Clean up any closed connections for this course before adding new one
-            CleanupClosedConnections(courseId);
-
-            // Debug logging for courseId 1 (Global)
-            if (courseId == 1)
+            lock (_lock)
             {
-                Console.WriteLine($"[DEBUG] Global course - Before adding user {userId}:");
-                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
-                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
-                Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                if (!_courseClients.ContainsKey(courseId))
+                    _courseClients[courseId] = new List<WebSocket>();
+
+                if (!_courseUsers.ContainsKey(courseId))
+                    _courseUsers[courseId] = new HashSet<int>();
+
+                // Clean up any closed connections for this course before adding new one
+                CleanupClosedConnections(courseId);
+
+                // Debug logging for courseId 1 (Global)
+                if (courseId == 1)
+                {
+                    Console.WriteLine($"[DEBUG] Global course - Before adding user {userId}:");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
+                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                }
+
+                _courseClients[courseId].Add(webSocket);
+                _courseUsers[courseId].Add(userId);
+
+                // Track this websocket-user relationship
+                _socketUserMap[webSocket] = (courseId, userId);
+
+                // More debug logging for courseId 1
+                if (courseId == 1)
+                {
+                    Console.WriteLine($"[DEBUG] Global course - After adding user {userId}:");
+                    Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
+                    Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
+                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                }
+
+                Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId].Count} users");
             }
-
-            _courseClients[courseId].Add(webSocket);
-            _courseUsers[courseId].Add(userId);
-
-            // Track this websocket-user relationship
-            _socketUserMap[webSocket] = (courseId, userId);
-
-            // More debug logging for courseId 1
-            if (courseId == 1)
-            {
-                Console.WriteLine($"[DEBUG] Global course - After adding user {userId}:");
-                Console.WriteLine($"[DEBUG] - Connected clients: {_courseClients[courseId].Count}");
-                Console.WriteLine($"[DEBUG] - Connected users: {string.Join(", ", _courseUsers[courseId])}");
-                Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
-            }
-
-            Console.WriteLine($"Course {courseId} now has {_courseUsers[courseId].Count} users");
 
             // Broadcast updated user count
             await BroadcastUserCount(courseId);
@@ -333,7 +355,16 @@ namespace backend.WebSockets
                         var jsonMessage = System.Text.Json.JsonSerializer.Serialize(messageDto);
                         var formattedMessage = $"NEW_MESSAGE:{jsonMessage}";
                         var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
-                        foreach (var client in _courseClients[courseId].Where(c => c.State == WebSocketState.Open))
+                        
+                        List<WebSocket> openClients;
+                        lock (_lock)
+                        {
+                            openClients = _courseClients.ContainsKey(courseId)
+                                ? _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList()
+                                : new List<WebSocket>();
+                        }
+                        
+                        foreach (var client in openClients)
                         {
                             try
                             {
@@ -359,54 +390,57 @@ namespace backend.WebSockets
                 // Clean up when connection closes
                 Console.WriteLine($"User {userId} disconnecting from course {courseId}");
 
-                // Debug logging for courseId 1 (Global)
-                if (courseId == 1)
+                lock (_lock)
                 {
-                    Console.WriteLine($"[DEBUG] Global course - Before cleanup for user {userId}:");
-                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
-                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
-                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
-                }
-
-                if (_courseClients.ContainsKey(courseId))
-                {
-                    _courseClients[courseId].Remove(webSocket);
-                }
-
-                // Remove from socket-user mapping and check if user should be removed
-                if (_socketUserMap.TryGetValue(webSocket, out var userInfo))
-                {
-                    var (socketCourseId, socketUserId) = userInfo;
-                    _socketUserMap.Remove(webSocket);
-
-                    // Only remove user from course if they don't have any other open connections to this course
-                    var userHasOtherConnections = _courseClients.ContainsKey(courseId) &&
-                        _courseClients[courseId]
-                            .Any(ws => _socketUserMap.TryGetValue(ws, out var info) &&
-                                      info.userId == socketUserId && ws.State == WebSocketState.Open);
-
-                    if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId))
-                    {
-                        _courseUsers[courseId].Remove(socketUserId);
-                    }
-
-                    // Debug logging for courseId 1
+                    // Debug logging for courseId 1 (Global)
                     if (courseId == 1)
                     {
-                        Console.WriteLine($"[DEBUG] Global course - User {socketUserId} other connections: {userHasOtherConnections}");
+                        Console.WriteLine($"[DEBUG] Global course - Before cleanup for user {userId}:");
+                        Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
+                        Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
+                        Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
                     }
-                }
 
-                // More debug logging for courseId 1
-                if (courseId == 1)
-                {
-                    Console.WriteLine($"[DEBUG] Global course - After cleanup for user {userId}:");
-                    Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
-                    Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
-                    Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
-                }
+                    if (_courseClients.ContainsKey(courseId))
+                    {
+                        _courseClients[courseId].Remove(webSocket);
+                    }
 
-                Console.WriteLine($"Course {courseId} now has {(_courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0)} users after disconnect");
+                    // Remove from socket-user mapping and check if user should be removed
+                    if (_socketUserMap.TryGetValue(webSocket, out var userInfo))
+                    {
+                        var (socketCourseId, socketUserId) = userInfo;
+                        _socketUserMap.Remove(webSocket);
+
+                        // Only remove user from course if they don't have any other open connections to this course
+                        var userHasOtherConnections = _courseClients.ContainsKey(courseId) &&
+                            _courseClients[courseId]
+                                .Any(ws => _socketUserMap.TryGetValue(ws, out var info) &&
+                                          info.userId == socketUserId && ws.State == WebSocketState.Open);
+
+                        if (!userHasOtherConnections && _courseUsers.ContainsKey(courseId))
+                        {
+                            _courseUsers[courseId].Remove(socketUserId);
+                        }
+
+                        // Debug logging for courseId 1
+                        if (courseId == 1)
+                        {
+                            Console.WriteLine($"[DEBUG] Global course - User {socketUserId} other connections: {userHasOtherConnections}");
+                        }
+                    }
+
+                    // More debug logging for courseId 1
+                    if (courseId == 1)
+                    {
+                        Console.WriteLine($"[DEBUG] Global course - After cleanup for user {userId}:");
+                        Console.WriteLine($"[DEBUG] - Connected clients: {(_courseClients.ContainsKey(courseId) ? _courseClients[courseId].Count : 0)}");
+                        Console.WriteLine($"[DEBUG] - Connected users: {(_courseUsers.ContainsKey(courseId) ? string.Join(", ", _courseUsers[courseId]) : "none")}");
+                        Console.WriteLine($"[DEBUG] - Socket map entries for course 1: {_socketUserMap.Count(kvp => kvp.Value.courseId == 1)}");
+                    }
+
+                    Console.WriteLine($"Course {courseId} now has {(_courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0)} users after disconnect");
+                }
 
                 // Broadcast updated user count
                 await BroadcastUserCount(courseId);
@@ -444,6 +478,7 @@ namespace backend.WebSockets
 
         private static void CleanupClosedConnections(int courseId)
         {
+            // This method should only be called from within a lock
             if (!_courseClients.ContainsKey(courseId))
                 return;
 
@@ -503,28 +538,148 @@ namespace backend.WebSockets
             var jsonMessage = System.Text.Json.JsonSerializer.Serialize(message);
             var sendBuffer = Encoding.UTF8.GetBytes(jsonMessage);
 
-            // Send to all users connected to the Global course (courseId 1) 
-            // since that's where StudyBuddy components listen for updates
-            const int globalCourseId = 1;
-            if (_courseClients.ContainsKey(globalCourseId))
+            List<WebSocket> openClients;
+            
+            lock (_lock)
             {
-                var openClients = _courseClients[globalCourseId].Where(c => c.State == WebSocketState.Open).ToList();
+                // Send to all users connected to the Global course (courseId 1) 
+                // since that's where StudyBuddy components listen for updates
+                const int globalCourseId = 1;
+                openClients = _courseClients.ContainsKey(globalCourseId)
+                    ? _courseClients[globalCourseId].Where(c => c.State == WebSocketState.Open).ToList()
+                    : new List<WebSocket>();
+            }
 
-                Console.WriteLine($"Broadcasting study buddy update to {openClients.Count} clients on Global course");
+            Console.WriteLine($"Broadcasting study buddy update to {openClients.Count} clients on Global course");
 
-                foreach (var client in openClients)
+            foreach (var client in openClients)
+            {
+                try
                 {
-                    try
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
+                }
+            }
+        }
+
+        // Private Message WebSocket Broadcasting Methods
+        public static async Task BroadcastPrivateMessage(int senderId, int recipientId, PrivateMessage message)
+        {
+            var messageData = new
+            {
+                type = "PRIVATE_MESSAGE_NEW",
+                message = new
+                {
+                    id = message.Id,
+                    senderId = message.SenderId,
+                    senderName = message.Sender.DisplayName,
+                    recipientId = message.RecipientId,
+                    recipientName = message.Recipient.DisplayName,
+                    content = message.Content,
+                    timestamp = message.Timestamp.ToString("o"),
+                    editedAt = message.EditedAt?.ToString("o"),
+                    isRead = message.ReadAt.HasValue
+                }
+            };
+
+            // Send to both sender and recipient
+            await BroadcastToUser(senderId, messageData);
+            await BroadcastToUser(recipientId, messageData);
+        }
+
+        public static async Task BroadcastPrivateMessageUpdate(int senderId, int recipientId, PrivateMessage message)
+        {
+            var updateData = new
+            {
+                type = "PRIVATE_MESSAGE_UPDATED",
+                message = new
+                {
+                    id = message.Id,
+                    senderId = message.SenderId,
+                    senderName = message.Sender.DisplayName,
+                    recipientId = message.RecipientId,
+                    recipientName = message.Recipient.DisplayName,
+                    content = message.Content,
+                    timestamp = message.Timestamp.ToString("o"),
+                    editedAt = message.EditedAt?.ToString("o"),
+                    isRead = message.ReadAt.HasValue
+                }
+            };
+
+            // Send to both sender and recipient
+            await BroadcastToUser(senderId, updateData);
+            await BroadcastToUser(recipientId, updateData);
+        }
+
+        public static async Task BroadcastPrivateMessageDelete(int senderId, int recipientId, int messageId)
+        {
+            var deleteData = new
+            {
+                type = "PRIVATE_MESSAGE_DELETED",
+                messageId = messageId
+            };
+
+            // Send to both sender and recipient
+            await BroadcastToUser(senderId, deleteData);
+            await BroadcastToUser(recipientId, deleteData);
+        }
+
+        public static async Task BroadcastPrivateMessageRead(int senderId, int messageId)
+        {
+            var readData = new
+            {
+                type = "PRIVATE_MESSAGE_READ",
+                messageId = messageId
+            };
+
+            // Send to sender to update their UI
+            await BroadcastToUser(senderId, readData);
+        }
+
+        private static async Task BroadcastToUser(int userId, object data)
+        {
+            var jsonMessage = System.Text.Json.JsonSerializer.Serialize(data);
+            var sendBuffer = Encoding.UTF8.GetBytes(jsonMessage);
+
+            // Find all WebSocket connections for this user across all courses
+            List<WebSocket> userConnections;
+            
+            lock (_lock)
+            {
+                userConnections = new List<WebSocket>();
+                
+                foreach (var courseClients in _courseClients.Values)
+                {
+                    foreach (var client in courseClients.Where(c => c.State == WebSocketState.Open))
                     {
-                        await client.SendAsync(new ArraySegment<byte>(sendBuffer),
-                                               WebSocketMessageType.Text,
-                                               true,
-                                               CancellationToken.None);
+                        if (_socketUserMap.TryGetValue(client, out var userInfo) && userInfo.userId == userId)
+                        {
+                            userConnections.Add(client);
+                        }
                     }
-                    catch
-                    {
-                        // Ignore errors for disconnected clients
-                    }
+                }
+            }
+
+            Console.WriteLine($"Broadcasting private message update to user {userId} on {userConnections.Count} connections");
+
+            foreach (var client in userConnections)
+            {
+                try
+                {
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
                 }
             }
         }
