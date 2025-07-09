@@ -1,29 +1,29 @@
 import { useEffect, useRef, useCallback } from "react";
 
-interface StudyBuddy {
+export interface PrivateMessage {
   id: number;
-  courseId: number;
-  courseName?: string;
-  isOptedIn: boolean;
-  buddy?: {
-    id: number;
-    username: string;
-    displayName: string;
-  };
-  matchedAt?: string;
-  contactPreference?: string;
+  senderId: number;
+  senderName: string;
+  recipientId: number;
+  recipientName: string;
+  content: string;
+  timestamp: string;
+  editedAt?: string;
+  isRead: boolean;
 }
 
-export interface StudyBuddyUpdateMessage {
-  type: "STUDY_BUDDY_UPDATE";
-  userId: number;
-  courseId: number;
-  updateType: "MATCHED" | "DISCONNECTED" | "OPTED_IN" | "OPTED_OUT";
-  studyBuddy?: StudyBuddy;
+export interface PrivateMessageUpdateData {
+  type:
+    | "PRIVATE_MESSAGE_NEW"
+    | "PRIVATE_MESSAGE_UPDATED"
+    | "PRIVATE_MESSAGE_DELETED"
+    | "PRIVATE_MESSAGE_READ";
+  message?: PrivateMessage;
+  messageId?: number;
 }
 
-export function useStudyBuddySocket(
-  onStudyBuddyUpdate: (update: StudyBuddyUpdateMessage) => void
+export function usePrivateMessageSocket(
+  onPrivateMessageUpdate: (update: PrivateMessageUpdateData) => void
 ) {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -42,13 +42,14 @@ export function useStudyBuddySocket(
       socketRef.current.close();
     }
 
-    // Connect to course 1 (Global) to receive study buddy updates for all courses
+    // Connect to course 1 (Global) to receive private message updates
+    // Private messages are user-specific, not course-specific
     const wsUrl = `${import.meta.env.VITE_WS_URL}?courseId=1&token=${token}`;
 
     socketRef.current = new WebSocket(wsUrl);
 
     socketRef.current.onopen = () => {
-      console.log("Study buddy WebSocket connected");
+      console.log("Private message WebSocket connected");
       reconnectAttemptsRef.current = 0;
     };
 
@@ -56,8 +57,8 @@ export function useStudyBuddySocket(
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type === "STUDY_BUDDY_UPDATE") {
-          onStudyBuddyUpdate(data as StudyBuddyUpdateMessage);
+        if (data.type && data.type.startsWith("PRIVATE_MESSAGE_")) {
+          onPrivateMessageUpdate(data as PrivateMessageUpdateData);
         }
       } catch {
         // Handle non-JSON messages (like USER_COUNT messages) silently
@@ -67,7 +68,7 @@ export function useStudyBuddySocket(
 
     socketRef.current.onclose = (event) => {
       console.log(
-        "Study buddy WebSocket disconnected",
+        "Private message WebSocket disconnected",
         event.code,
         event.reason
       );
@@ -83,9 +84,9 @@ export function useStudyBuddySocket(
     };
 
     socketRef.current.onerror = (error) => {
-      console.error("Study buddy WebSocket error:", error);
+      console.error("Private message WebSocket error:", error);
     };
-  }, [onStudyBuddyUpdate]);
+  }, [onPrivateMessageUpdate]);
 
   useEffect(() => {
     connectWebSocket();
@@ -100,5 +101,12 @@ export function useStudyBuddySocket(
     };
   }, [connectWebSocket]);
 
-  return { isConnected: socketRef.current?.readyState === WebSocket.OPEN };
+  return {
+    isConnected: socketRef.current?.readyState === WebSocket.OPEN,
+    disconnect: () => {
+      if (socketRef.current) {
+        socketRef.current.close(1000); // Normal closure
+      }
+    },
+  };
 }

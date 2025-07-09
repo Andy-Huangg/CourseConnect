@@ -14,12 +14,13 @@ import {
   DialogContent,
   DialogActions,
 } from "@mui/material";
-import { People, PersonAdd, PersonRemove } from "@mui/icons-material";
+import { People, PersonAdd, PersonRemove, Chat } from "@mui/icons-material";
 import { useCourses } from "../hooks/useCourses";
 import {
   useStudyBuddySocket,
   type StudyBuddyUpdateMessage,
 } from "../hooks/useStudyBuddySocket";
+import PrivateChat from "./PrivateChat";
 
 interface StudyBuddy {
   id: number;
@@ -49,6 +50,7 @@ export default function StudyBuddy() {
   const [contactPreference, setContactPreference] = useState("");
   const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
   const [isOptInDialogOpen, setIsOptInDialogOpen] = useState(false);
+  const [chatBuddy, setChatBuddy] = useState<StudyBuddy["buddy"] | null>(null);
 
   const { enrolledCourses } = useCourses();
 
@@ -312,6 +314,15 @@ export default function StudyBuddy() {
     );
   }
 
+  // Show private chat if a buddy is selected
+  if (chatBuddy) {
+    return (
+      <Box sx={{ height: "calc(100vh - 120px)" }}>
+        <PrivateChat buddy={chatBuddy} onBack={() => setChatBuddy(null)} />
+      </Box>
+    );
+  }
+
   return (
     <Box sx={{ maxWidth: 1000, mx: "auto", p: 3 }}>
       <Box
@@ -403,6 +414,23 @@ export default function StudyBuddy() {
                         </Alert>
 
                         <Box sx={{ display: "flex", gap: 1 }}>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            onClick={() =>
+                              setChatBuddy(studyBuddy?.buddy || null)
+                            }
+                            disabled={isLoading}
+                            startIcon={
+                              isLoading ? (
+                                <CircularProgress size={16} />
+                              ) : (
+                                <Chat />
+                              )
+                            }
+                          >
+                            Chat
+                          </Button>
                           <Button
                             variant="outlined"
                             color="secondary"

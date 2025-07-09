@@ -31,7 +31,7 @@ namespace backend.WebSockets
                 userCount = _courseUsers.ContainsKey(courseId) ? _courseUsers[courseId].Count : 0;
                 Console.WriteLine($"Broadcasting user count for course {courseId}: {userCount} users");
 
-                openClients = _courseClients.ContainsKey(courseId) 
+                openClients = _courseClients.ContainsKey(courseId)
                     ? _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList()
                     : new List<WebSocket>();
             }
@@ -175,7 +175,7 @@ namespace backend.WebSockets
         public static async Task BroadcastMessageUpdate(int courseId, ChatMessage message)
         {
             List<WebSocket> openClients;
-            
+
             lock (_lock)
             {
                 if (!_courseClients.ContainsKey(courseId))
@@ -220,7 +220,7 @@ namespace backend.WebSockets
         public static async Task BroadcastMessageDelete(int courseId, int messageId)
         {
             List<WebSocket> openClients;
-            
+
             lock (_lock)
             {
                 if (!_courseClients.ContainsKey(courseId))
@@ -355,7 +355,7 @@ namespace backend.WebSockets
                         var jsonMessage = System.Text.Json.JsonSerializer.Serialize(messageDto);
                         var formattedMessage = $"NEW_MESSAGE:{jsonMessage}";
                         var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
-                        
+
                         List<WebSocket> openClients;
                         lock (_lock)
                         {
@@ -363,7 +363,7 @@ namespace backend.WebSockets
                                 ? _courseClients[courseId].Where(c => c.State == WebSocketState.Open).ToList()
                                 : new List<WebSocket>();
                         }
-                        
+
                         foreach (var client in openClients)
                         {
                             try
@@ -539,7 +539,7 @@ namespace backend.WebSockets
             var sendBuffer = Encoding.UTF8.GetBytes(jsonMessage);
 
             List<WebSocket> openClients;
-            
+
             lock (_lock)
             {
                 // Send to all users connected to the Global course (courseId 1) 
@@ -649,11 +649,11 @@ namespace backend.WebSockets
 
             // Find all WebSocket connections for this user across all courses
             List<WebSocket> userConnections;
-            
+
             lock (_lock)
             {
                 userConnections = new List<WebSocket>();
-                
+
                 foreach (var courseClients in _courseClients.Values)
                 {
                     foreach (var client in courseClients.Where(c => c.State == WebSocketState.Open))
