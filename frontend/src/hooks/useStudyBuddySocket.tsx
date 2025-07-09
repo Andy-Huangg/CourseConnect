@@ -35,24 +35,27 @@ export function useStudyBuddySocket(
   const closeWebSocket = useCallback(() => {
     if (socketRef.current) {
       const currentState = socketRef.current.readyState;
-      
+
       // Only close if connection is open or connecting
-      if (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING) {
+      if (
+        currentState === WebSocket.OPEN ||
+        currentState === WebSocket.CONNECTING
+      ) {
         socketRef.current.close(1000); // Normal closure
       }
-      
+
       socketRef.current = null;
     }
-    
+
     // Reset states
     isConnectingRef.current = false;
-    
+
     // Clear any pending reconnection attempts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
       reconnectTimeoutRef.current = null;
     }
-    
+
     // Clear any pending cleanup timeout
     if (cleanupTimeoutRef.current) {
       clearTimeout(cleanupTimeoutRef.current);
@@ -73,19 +76,27 @@ export function useStudyBuddySocket(
     // Check if we already have an active connection
     if (socketRef.current) {
       const currentState = socketRef.current.readyState;
-      
+
       // If connection is already open or connecting, don't create a new one
-      if (currentState === WebSocket.OPEN || currentState === WebSocket.CONNECTING) {
+      if (
+        currentState === WebSocket.OPEN ||
+        currentState === WebSocket.CONNECTING
+      ) {
         console.log("Study buddy already connected, skipping...");
         return;
       }
-      
+
       // Only close if connection is in a closable state (not already closed or closing)
-      if (currentState !== WebSocket.CLOSED && currentState !== WebSocket.CLOSING) {
-        console.log("Closing existing study buddy connection before creating new one");
+      if (
+        currentState !== WebSocket.CLOSED &&
+        currentState !== WebSocket.CLOSING
+      ) {
+        console.log(
+          "Closing existing study buddy connection before creating new one"
+        );
         socketRef.current.close(1000);
       }
-      
+
       // Set to null to ensure we create a fresh connection
       socketRef.current = null;
     }
@@ -132,7 +143,11 @@ export function useStudyBuddySocket(
       // Only attempt to reconnect if it wasn't a clean close
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;
-        console.log(`Attempting to reconnect study buddy WebSocket in ${delay}ms (attempt ${reconnectAttemptsRef.current + 1})`);
+        console.log(
+          `Attempting to reconnect study buddy WebSocket in ${delay}ms (attempt ${
+            reconnectAttemptsRef.current + 1
+          })`
+        );
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
@@ -160,7 +175,7 @@ export function useStudyBuddySocket(
     };
   }, [connectWebSocket, closeWebSocket]);
 
-  return { 
+  return {
     isConnected: socketRef.current?.readyState === WebSocket.OPEN,
     disconnect: () => {
       closeWebSocket();
