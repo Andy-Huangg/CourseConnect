@@ -21,10 +21,10 @@ namespace backend.Controllers
         [HttpGet]
         public async Task<IActionResult> GetMyStudyBuddies()
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var studyBuddies = await _studyBuddyRepo.GetByUserIdAsync(userId);
@@ -51,10 +51,10 @@ namespace backend.Controllers
         [HttpGet("course/{courseId}")]
         public async Task<IActionResult> GetStudyBuddyForCourse(int courseId)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var studyBuddy = await _studyBuddyRepo.GetByUserAndCourseAsync(userId, courseId);
@@ -90,10 +90,10 @@ namespace backend.Controllers
         [HttpPost("opt-in")]
         public async Task<IActionResult> OptIn([FromBody] OptInStudyBuddyDto request)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             try
@@ -128,10 +128,10 @@ namespace backend.Controllers
         [HttpPost("opt-out")]
         public async Task<IActionResult> OptOut([FromBody] OptInStudyBuddyDto request)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var success = await _studyBuddyRepo.OptOutAsync(userId, request.CourseId);
@@ -147,10 +147,10 @@ namespace backend.Controllers
         [HttpPost("remove-match")]
         public async Task<IActionResult> RemoveMatch([FromBody] OptInStudyBuddyDto request)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var success = await _studyBuddyRepo.RemoveMatchAsync(userId, request.CourseId);

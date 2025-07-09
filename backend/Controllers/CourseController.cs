@@ -105,7 +105,8 @@ namespace backend.Controllers
         [HttpGet("my-courses")]
         public async Task<IActionResult> GetMyCourses()
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            // Try custom userId claim first, fallback to NameIdentifier for backward compatibility
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
                 return Unauthorized("Invalid user token");
@@ -132,7 +133,8 @@ namespace backend.Controllers
         [HttpPost("{courseId}/enroll")]
         public async Task<IActionResult> EnrollInCourse(int courseId)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            // Try custom userId claim first, fallback to NameIdentifier for backward compatibility
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
                 return Unauthorized("Invalid user token");
@@ -157,7 +159,8 @@ namespace backend.Controllers
         [HttpDelete("{courseId}/enroll")]
         public async Task<IActionResult> UnenrollFromCourse(int courseId)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            // Try custom userId claim first, fallback to NameIdentifier for backward compatibility
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
                 return Unauthorized("Invalid user token");
@@ -188,7 +191,8 @@ namespace backend.Controllers
         [HttpGet("{courseId}/enrollment-status")]
         public async Task<IActionResult> GetEnrollmentStatus(int courseId)
         {
-            var userIdClaim = User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
+            // Try custom userId claim first, fallback to NameIdentifier for backward compatibility
+            var userIdClaim = User.FindFirst("userId") ?? User.FindFirst(System.Security.Claims.ClaimTypes.NameIdentifier);
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
                 return Unauthorized("Invalid user token");

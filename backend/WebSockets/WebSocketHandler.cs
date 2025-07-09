@@ -83,15 +83,30 @@ namespace backend.WebSockets
                 var tokenHandler = new JwtSecurityTokenHandler();
                 var jsonToken = tokenHandler.ReadJwtToken(token);
 
-                // Extract user ID from NameIdentifier claim
-                var userIdClaim = jsonToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+                // Debug: Print all claims in the token
+                Console.WriteLine("Available claims in token:");
+                foreach (var claim in jsonToken.Claims)
+                {
+                    Console.WriteLine($"  {claim.Type}: {claim.Value}");
+                }
+
+                // Extract user ID from custom userId claim (preferred)
+                var userIdClaim = jsonToken.Claims.FirstOrDefault(c => c.Type == "userId");
                 if (userIdClaim != null && int.TryParse(userIdClaim.Value, out int userId))
                 {
-                    Console.WriteLine($"Successfully extracted user ID: {userId}");
+                    Console.WriteLine($"Successfully extracted user ID from userId claim: {userId}");
                     return userId;
                 }
 
-                Console.WriteLine("User ID claim not found or invalid");
+                // Fallback to standard NameIdentifier claim (for backward compatibility)
+                var nameIdentifierClaim = jsonToken.Claims.FirstOrDefault(c => c.Type == ClaimTypes.NameIdentifier);
+                if (nameIdentifierClaim != null && int.TryParse(nameIdentifierClaim.Value, out int fallbackUserId))
+                {
+                    Console.WriteLine($"Successfully extracted user ID from NameIdentifier claim: {fallbackUserId}");
+                    return fallbackUserId;
+                }
+
+                Console.WriteLine("User ID claim not found or invalid in both userId and NameIdentifier claims");
                 return null;
             }
             catch (Exception ex)

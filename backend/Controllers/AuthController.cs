@@ -99,14 +99,14 @@ namespace backend.Controllers
             }
 
             // JWT Claims:
-            // - Sub: User ID (standard JWT subject claim)
-            // - NameIdentifier: User ID (ASP.NET Core user identifier for authorization)
+            // - Sub: Username (standard JWT subject claim for interoperability)  
+            // - userId: User ID (custom claim for our application's user identification)
             // - Name: Username (for display purposes)
             var claims = new[]
             {
-                new Claim(JwtRegisteredClaimNames.Sub, userId.ToString()), // Standard sub claim should be unique identifier
+                new Claim(JwtRegisteredClaimNames.Sub, username), // Username in sub claim
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
-                new Claim(ClaimTypes.NameIdentifier, userId.ToString()), // ASP.NET Core user identifier
+                new Claim("userId", userId.ToString()), // Custom userId claim for our app
                 new Claim(ClaimTypes.Name, username) // Username for display purposes
             };
 

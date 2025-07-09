@@ -35,10 +35,10 @@ namespace backend.Controllers
         [HttpGet("anonymous-name/{courseId}")]
         public IActionResult GetAnonymousName(int courseId)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var anonymousName = _anonymousNameService.GenerateAnonymousName(userId, courseId);
@@ -49,10 +49,10 @@ namespace backend.Controllers
         [HttpPut("{messageId}")]
         public async Task<IActionResult> EditMessage(int messageId, [FromBody] EditMessageDto editDto)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var message = await _chatRepo.GetMessageByIdAsync(messageId);
@@ -83,10 +83,10 @@ namespace backend.Controllers
         [HttpDelete("{messageId}")]
         public async Task<IActionResult> DeleteMessage(int messageId)
         {
-            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier);
+            var userIdClaim = User.FindFirst("userId");
             if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
             {
-                return Unauthorized("Invalid user token");
+                return Unauthorized("Invalid user token - userId claim not found");
             }
 
             var message = await _chatRepo.GetMessageByIdAsync(messageId);
