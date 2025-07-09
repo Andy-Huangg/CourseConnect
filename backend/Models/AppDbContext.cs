@@ -12,6 +12,7 @@ namespace backend.Models
         public DbSet<ChatMessage> ChatMessages { get; set; }
         public DbSet<Course> Courses { get; set; }
         public DbSet<StudyBuddy> StudyBuddies { get; set; }
+        public DbSet<PrivateMessage> PrivateMessages { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -58,6 +59,19 @@ namespace backend.Models
             modelBuilder.Entity<StudyBuddy>()
                 .HasIndex(sb => new { sb.UserId, sb.CourseId })
                 .IsUnique();
+
+            // Configure PrivateMessage relationships
+            modelBuilder.Entity<PrivateMessage>()
+                .HasOne(pm => pm.Sender)
+                .WithMany()
+                .HasForeignKey(pm => pm.SenderId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            modelBuilder.Entity<PrivateMessage>()
+                .HasOne(pm => pm.Recipient)
+                .WithMany()
+                .HasForeignKey(pm => pm.RecipientId)
+                .OnDelete(DeleteBehavior.NoAction);
         }
     }
 }
