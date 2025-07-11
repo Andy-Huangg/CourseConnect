@@ -32,14 +32,14 @@ import { useCourses } from "../../hooks/useCourses";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { usePrivateMessages } from "../../hooks/usePrivateMessages";
 
-// Styled components with Discord-inspired design
+// Styled components
 const ChatContainer = styled(Box)(({ theme }) => ({
   display: "flex",
   flexDirection: "column",
   height: "100vh",
   backgroundColor:
     theme.palette.mode === "dark"
-      ? "#36393f" // Discord dark chat background
+      ? "#36393f" // dark chat background
       : "#ffffff",
 }));
 
@@ -413,21 +413,6 @@ export default function ModernChat({
                 <SearchIcon />
               </IconButton>
             </Tooltip>
-            <IconButton size="small" onClick={handleMenuClick}>
-              <MoreVertIcon />
-            </IconButton>
-            <Menu
-              anchorEl={anchorEl}
-              open={Boolean(anchorEl)}
-              onClose={handleMenuClose}
-            >
-              <MenuItem onClick={handleMenuClose}>Mute Channel</MenuItem>
-              <MenuItem onClick={handleMenuClose}>
-                Notification Settings
-              </MenuItem>
-              <Divider />
-              <MenuItem onClick={handleMenuClose}>Leave Course</MenuItem>
-            </Menu>
           </Box>
         </ChatHeader>
 

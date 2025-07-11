@@ -7,7 +7,7 @@ import {
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeContext, type ThemeMode } from "./ThemeContext";
 
-// Discord-inspired theme colors with Rebecca Purple accent
+// Theme colors with Rebecca Purple accent
 const appColors = {
   light: {
     primary: "#663399", // Rebecca Purple
@@ -25,9 +25,9 @@ const appColors = {
   dark: {
     primary: "#9966CC", // Lighter Rebecca Purple for dark mode
     secondary: "#B9BBBE",
-    background: "#2f3136", // Discord dark background
-    paper: "#36393f", // Discord dark surface
-    sidebar: "#202225", // Discord dark sidebar
+    background: "#2f3136", // dark background
+    paper: "#36393f", // dark surface
+    sidebar: "#202225", //  dark sidebar
     divider: "#40444b",
     hover: "#3c3f45",
     cardBackground: "#2b2d31",
