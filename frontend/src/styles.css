@@ -1,0 +1,112 @@
+/* Global styles for CourseConnect chat application */
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+:root {
+  font-family: "Inter", "Segoe UI", "Roboto", "Helvetica", "Arial", sans-serif;
+  line-height: 1.5;
+  font-weight: 400;
+  font-synthesis: none;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  min-height: 100vh;
+  width: 100%;
+  overflow-x: hidden;
+}
+
+#root {
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Custom scrollbar styles for modern look */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #b0b0b0;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #888;
+}
+
+/* Dark mode scrollbar */
+@media (prefers-color-scheme: dark) {
+  ::-webkit-scrollbar-thumb {
+    background: #4a4a4a;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #666;
+  }
+}
+
+/* Smooth transitions for theme changes */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease;
+}
+
+/* Focus styles for accessibility */
+button:focus-visible,
+input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid #663399;
+  outline-offset: 2px;
+}
+
+/* Prevent text selection on UI elements */
+.MuiButton-root,
+.MuiIconButton-root,
+.MuiTab-root,
+.MuiListItemButton-root {
+  user-select: none;
+}
+
+/* Ensure proper text selection in chat messages */
+.chat-message-content {
+  user-select: text;
+}
+
+/* Custom animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.fade-in {
+  animation: fadeIn 0.3s ease-out;
+}
+
+/* Print styles */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
