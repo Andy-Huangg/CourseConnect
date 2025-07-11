@@ -99,13 +99,7 @@ export default function PrivateMessageChat({
       if (!token) return null;
 
       const payload = JSON.parse(atob(token.split(".")[1]));
-      return parseInt(
-        payload["userId"] ||
-          payload[
-            "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-          ] ||
-          payload.sub
-      );
+      return parseInt(payload.userId); // Use the userId claim which contains the actual numeric user ID
     } catch {
       return null;
     }
