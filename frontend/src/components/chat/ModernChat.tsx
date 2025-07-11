@@ -1,0 +1,692 @@
+import { useState, useRef, useEffect, useMemo } from "react";
+import {
+  Box,
+  Typography,
+  TextField,
+  IconButton,
+  Avatar,
+  Paper,
+  Chip,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Divider,
+  Switch,
+  FormControlLabel,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
+} from "@mui/material";
+import { styled, useTheme } from "@mui/material/styles";
+import SendIcon from "@mui/icons-material/Send";
+import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
+import MoreVertIcon from "@mui/icons-material/MoreVert";
+import TagIcon from "@mui/icons-material/Tag";
+import SearchIcon from "@mui/icons-material/Search";
+import EditIcon from "@mui/icons-material/Edit";
+import DeleteIcon from "@mui/icons-material/Delete";
+import { useCourses } from "../../hooks/useCourses";
+import { useChatSocket } from "../../hooks/useChatSocket";
+import { usePrivateMessages } from "../../hooks/usePrivateMessages";
+
+// Styled components with Discord-inspired design
+const ChatContainer = styled(Box)(({ theme }) => ({
+  display: "flex",
+  flexDirection: "column",
+  height: "100vh",
+  backgroundColor:
+    theme.palette.mode === "dark"
+      ? "#36393f" // Discord dark chat background
+      : "#ffffff",
+}));
+
+const ChatHeader = styled(Box)(({ theme }) => ({
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  padding: theme.spacing(1.5, 2),
+  borderBottom: `1px solid ${theme.palette.divider}`,
+  backgroundColor: theme.palette.background.paper,
+  minHeight: 64,
+  boxShadow:
+    theme.palette.mode === "dark"
+      ? "0 1px 0 rgba(4, 4, 5, 0.2)"
+      : "0 1px 0 rgba(0, 0, 0, 0.06)",
+}));
+
+const MessagesContainer = styled(Box)(({ theme }) => ({
+  flex: 1,
+  overflowY: "auto",
+  padding: theme.spacing(1, 0),
+  "&::-webkit-scrollbar": {
+    width: "8px",
+  },
+  "&::-webkit-scrollbar-track": {
+    background: "transparent",
+  },
+  "&::-webkit-scrollbar-thumb": {
+    background: theme.palette.mode === "dark" ? "#202225" : "#ddd",
+    borderRadius: "4px",
+  },
+  "&::-webkit-scrollbar-thumb:hover": {
+    background: theme.palette.mode === "dark" ? "#36393f" : "#bbb",
+  },
+}));
+
+const MessageGroup = styled(Paper)(({ theme }) => ({
+  margin: theme.spacing(0.5, 2),
+  padding: theme.spacing(1.5, 2),
+  backgroundColor: "transparent",
+  border: "none",
+  boxShadow: "none",
+  borderRadius: 0,
+  transition: "background-color 0.1s ease",
+  "&:hover": {
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? "rgba(4, 4, 5, 0.07)"
+        : "rgba(6, 6, 7, 0.02)",
+    "& .message-actions": {
+      opacity: 1,
+    },
+  },
+  borderLeft: "4px solid transparent",
+  "&.own-message": {
+    borderLeftColor: theme.palette.primary.main,
+    backgroundColor:
+      theme.palette.mode === "dark"
+        ? "rgba(153, 102, 204, 0.05)"
+        : "rgba(102, 51, 153, 0.05)",
+  },
+}));
+
+const MessageInput = styled(Box)(({ theme }) => ({
+  padding: theme.spacing(2),
+  borderTop: `1px solid ${theme.palette.divider}`,
+  backgroundColor: theme.palette.background.paper,
+}));
+
+interface ModernChatProps {
+  wsBase: string;
+  selectedCourse?: number;
+  buddy?: { id: number; username: string; displayName: string };
+}
+
+export default function ModernChat({
+  wsBase,
+  selectedCourse: propSelectedCourse,
+  buddy,
+}: ModernChatProps) {
+  const theme = useTheme();
+  const [input, setInput] = useState("");
+  const [selectedCourse, setSelectedCourse] = useState<number | null>(
+    propSelectedCourse || null
+  );
+  const [isAnonymous, setIsAnonymous] = useState(false);
+  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
+  const [anonymousName, setAnonymousName] = useState<string>("");
+  const [editingMessage, setEditingMessage] = useState<{
+    id: number;
+    content: string;
+  } | null>(null);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const { enrolledCourses, isLoading: coursesLoading } = useCourses();
+
+  // Memoize the courses to prevent unnecessary re-renders
+  const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
+
+  // Sync with prop changes
+  useEffect(() => {
+    if (propSelectedCourse && propSelectedCourse !== selectedCourse) {
+      setSelectedCourse(propSelectedCourse);
+    }
+  }, [propSelectedCourse, selectedCourse]);
+
+  // Only connect to WebSocket after preferences are loaded
+  const wsUrl = buddy
+    ? null // For private messages, we'll use usePrivateMessages hook instead
+    : selectedCourse && preferencesLoaded
+    ? `${wsBase}?courseId=${selectedCourse}` // For course chat
+    : null;
+
+  // Use different hooks for course chat vs private messages
+  const {
+    messages: courseMessages,
+    sendMessage: sendCourseMessage,
+    editMessage: editCourseMessage,
+    deleteMessage: deleteCourseMessage,
+    isLoading: courseLoading,
+    connectedUsers,
+  } = useChatSocket(wsUrl, buddy ? null : selectedCourse, isAnonymous);
+
+  const {
+    messages: privateMessages,
+    sendMessage: sendPrivateMessage,
+    editMessage: editPrivateMessage,
+    deleteMessage: deletePrivateMessage,
+    isLoading: privateLoading,
+  } = usePrivateMessages(buddy?.id);
+
+  // Use the appropriate data based on whether we're in buddy chat or course chat
+  const messages = buddy ? privateMessages : courseMessages;
+  const isLoading = buddy ? privateLoading : courseLoading;
+  const sendMessage = buddy
+    ? (content: string) => sendPrivateMessage(buddy.id, content)
+    : sendCourseMessage;
+  const editMessage = buddy ? editPrivateMessage : editCourseMessage;
+  const deleteMessage = buddy ? deletePrivateMessage : deleteCourseMessage;
+
+  // Fetch anonymous name for the current course
+  const fetchAnonymousName = async (courseId: number) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/Chat/anonymous-name/${courseId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (response.ok) {
+        const data = await response.json();
+        setAnonymousName(data.anonymousName);
+      } else {
+        console.error("Failed to fetch anonymous name:", response.statusText);
+        setAnonymousName("");
+      }
+    } catch (error) {
+      console.error("Error fetching anonymous name:", error);
+      setAnonymousName("");
+    }
+  };
+
+  // Load anonymous mode preference for the selected course
+  useEffect(() => {
+    if (selectedCourse) {
+      const savedAnonymousMode = localStorage.getItem(
+        `anonymousMode_${selectedCourse}`
+      );
+      const newAnonymousMode = savedAnonymousMode === "true";
+
+      setIsAnonymous(newAnonymousMode);
+      setPreferencesLoaded(true);
+      fetchAnonymousName(selectedCourse);
+    } else {
+      setPreferencesLoaded(false);
+      setAnonymousName("");
+    }
+  }, [selectedCourse]);
+
+  // Save anonymous mode preference when it changes
+  const handleAnonymousModeChange = (checked: boolean) => {
+    setIsAnonymous(checked);
+    if (selectedCourse) {
+      localStorage.setItem(
+        `anonymousMode_${selectedCourse}`,
+        checked.toString()
+      );
+    }
+  };
+
+  // Set default course when courses load (only once)
+  useEffect(() => {
+    if (!selectedCourse && courses.length > 0) {
+      const defaultCourse = courses[0].id;
+      setSelectedCourse(defaultCourse);
+    }
+  }, [selectedCourse, courses]);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (input.trim()) {
+      if (buddy) {
+        // For private messages, handle the async result
+        const result = await (
+          sendMessage as (
+            content: string
+          ) => Promise<{ success: boolean; error?: string }>
+        )(input);
+        if (result && result.success) {
+          setInput("");
+        } else {
+          alert(result?.error || "Failed to send message");
+        }
+      } else {
+        // For course messages, it's synchronous
+        (sendMessage as (content: string) => void)(input);
+        setInput("");
+      }
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
+  const handleEditMessage = (messageId: number, currentContent: string) => {
+    setEditingMessage({ id: messageId, content: currentContent });
+    setIsEditDialogOpen(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (editingMessage) {
+      const result = await editMessage(
+        editingMessage.id,
+        editingMessage.content
+      );
+      if (result.success) {
+        setIsEditDialogOpen(false);
+        setEditingMessage(null);
+      } else {
+        alert(result.error || "Failed to edit message");
+      }
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: number) => {
+    if (window.confirm("Are you sure you want to delete this message?")) {
+      const result = await deleteMessage(messageId);
+      if (!result.success) {
+        alert(result.error || "Failed to delete message");
+      }
+    }
+  };
+
+  const getCurrentUserId = () => {
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) return null;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.userId; // Use the userId claim which contains the actual numeric user ID
+    } catch {
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
+
+  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
+    setAnchorEl(event.currentTarget);
+  };
+
+  const handleMenuClose = () => {
+    setAnchorEl(null);
+  };
+
+  const currentCourse = enrolledCourses.find(
+    (course) => course.id === selectedCourse
+  );
+
+  // Show loading state while courses are being fetched or preferences are loading
+  if (coursesLoading || !preferencesLoaded) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          color: "text.secondary",
+        }}
+      >
+        <Typography>
+          {coursesLoading
+            ? "Loading courses..."
+            : "Loading chat preferences..."}
+        </Typography>
+      </Box>
+    );
+  }
+
+  if (courses.length === 0) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          height: "100%",
+          textAlign: "center",
+          p: 4,
+        }}
+      >
+        <Box>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No Enrolled Courses
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            You haven't enrolled in any courses yet. Go to the "My Courses" tab
+            to select courses and join the conversation!
+          </Typography>
+        </Box>
+      </Box>
+    );
+  }
+
+  return (
+    <Box sx={{ display: "flex", height: "100%" }}>
+      {/* Main Chat Area */}
+      <ChatContainer sx={{ flex: 1 }}>
+        {/* Chat Header */}
+        <ChatHeader>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <TagIcon sx={{ color: "text.secondary" }} />
+            <Box>
+              <Typography variant="h6" fontWeight={600}>
+                {buddy
+                  ? `${buddy.displayName}`
+                  : currentCourse?.name || "Select a Course"}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {buddy
+                  ? "Private Messages"
+                  : `${messages.length} messages • ${connectedUsers} ${
+                      connectedUsers === 1 ? "user" : "users"
+                    } online`}
+              </Typography>
+            </Box>
+          </Box>
+
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Tooltip title="Search Messages">
+              <IconButton size="small">
+                <SearchIcon />
+              </IconButton>
+            </Tooltip>
+            <IconButton size="small" onClick={handleMenuClick}>
+              <MoreVertIcon />
+            </IconButton>
+            <Menu
+              anchorEl={anchorEl}
+              open={Boolean(anchorEl)}
+              onClose={handleMenuClose}
+            >
+              <MenuItem onClick={handleMenuClose}>Mute Channel</MenuItem>
+              <MenuItem onClick={handleMenuClose}>
+                Notification Settings
+              </MenuItem>
+              <Divider />
+              <MenuItem onClick={handleMenuClose}>Leave Course</MenuItem>
+            </Menu>
+          </Box>
+        </ChatHeader>
+
+        {/* Messages Area */}
+        <MessagesContainer>
+          {" "}
+          {isLoading ? (
+            <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+              Loading chat history...
+            </Box>
+          ) : messages.length === 0 ? (
+            <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
+              No messages yet. Start the conversation!
+            </Box>
+          ) : (
+            messages.map((msg) => {
+              const isOwnMessage =
+                String(msg.senderId) === String(currentUserId);
+              const displayName =
+                "displayName" in msg ? msg.displayName : msg.senderName;
+              return (
+                <MessageGroup
+                  key={msg.id}
+                  className={isOwnMessage ? "own-message" : ""}
+                  sx={{
+                    backgroundColor: isOwnMessage
+                      ? theme.palette.mode === "dark"
+                        ? "rgba(102, 51, 153, 0.05)"
+                        : "rgba(102, 51, 153, 0.03)"
+                      : "transparent",
+                    borderLeft: isOwnMessage
+                      ? `3px solid ${theme.palette.primary.main}`
+                      : "none",
+                    ml: isOwnMessage ? 1.5 : 2,
+                    "&:hover": {
+                      backgroundColor: isOwnMessage
+                        ? theme.palette.mode === "dark"
+                          ? "rgba(102, 51, 153, 0.08)"
+                          : "rgba(102, 51, 153, 0.05)"
+                        : theme.palette.mode === "dark"
+                        ? "rgba(4, 4, 5, 0.07)"
+                        : "rgba(6, 6, 7, 0.02)",
+                    },
+                  }}
+                >
+                  <Box
+                    sx={{ display: "flex", alignItems: "flex-start", gap: 2 }}
+                  >
+                    {" "}
+                    <Avatar
+                      sx={{
+                        width: 40,
+                        height: 40,
+                        backgroundColor: isOwnMessage
+                          ? theme.palette.primary.main
+                          : theme.palette.secondary.main,
+                        fontSize: "0.875rem",
+                        fontWeight: 600,
+                      }}
+                    >
+                      {displayName?.charAt(0).toUpperCase() || "?"}
+                    </Avatar>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Box
+                        sx={{
+                          display: "flex",
+                          alignItems: "baseline",
+                          gap: 1,
+                          mb: 0.5,
+                        }}
+                      >
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
+                          sx={{
+                            color: isOwnMessage
+                              ? theme.palette.primary.main
+                              : "text.primary",
+                          }}
+                        >
+                          {displayName}
+                        </Typography>
+                        <Typography variant="caption" color="text.secondary">
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </Typography>{" "}
+                        {"editedAt" in msg && msg.editedAt && (
+                          <Typography
+                            variant="caption"
+                            color="text.secondary"
+                            sx={{ fontStyle: "italic" }}
+                          >
+                            (edited)
+                          </Typography>
+                        )}
+                      </Box>
+                      <Typography
+                        variant="body1"
+                        sx={{ wordBreak: "break-word" }}
+                      >
+                        {msg.content}
+                      </Typography>
+                    </Box>
+                    {isOwnMessage && (
+                      <Box sx={{ display: "flex", gap: 0.5, ml: 1 }}>
+                        <Tooltip title="Edit message">
+                          <IconButton
+                            size="small"
+                            onClick={() =>
+                              handleEditMessage(msg.id, msg.content)
+                            }
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": { color: "primary.main" },
+                            }}
+                          >
+                            <EditIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete message">
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteMessage(msg.id)}
+                            sx={{
+                              color: "text.secondary",
+                              "&:hover": { color: "error.main" },
+                            }}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    )}
+                  </Box>
+                </MessageGroup>
+              );
+            })
+          )}
+          <div ref={messagesEndRef} />
+        </MessagesContainer>
+
+        {/* Message Input */}
+        <MessageInput>
+          {!buddy && (
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                px: 1,
+                py: 0.5,
+                borderBottom: `1px solid ${theme.palette.divider}`,
+                backgroundColor: theme.palette.background.paper,
+              }}
+            >
+              <FormControlLabel
+                control={
+                  <Switch
+                    checked={isAnonymous}
+                    onChange={(e) =>
+                      handleAnonymousModeChange(e.target.checked)
+                    }
+                    color="primary"
+                    size="small"
+                  />
+                }
+                label={
+                  <Typography variant="body2" fontWeight={500}>
+                    Anonymous Mode
+                  </Typography>
+                }
+                sx={{ m: 0 }}
+              />
+              {isAnonymous && anonymousName && (
+                <Chip
+                  label={`🎭 ${anonymousName}`}
+                  size="small"
+                  color="warning"
+                  sx={{ fontSize: "0.7rem", height: 24 }}
+                />
+              )}
+            </Box>
+          )}
+          <Paper
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              p: 1,
+              backgroundColor:
+                theme.palette.mode === "dark" ? "#40444b" : "#ebedef",
+              borderRadius: 2,
+            }}
+          >
+            <IconButton size="small" sx={{ ml: 0.5 }}>
+              <AttachFileIcon />
+            </IconButton>
+            <TextField
+              fullWidth
+              variant="standard"
+              placeholder={`Message ${currentCourse?.name || "course"}`}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyPress={handleKeyPress}
+              multiline
+              maxRows={4}
+              InputProps={{
+                disableUnderline: true,
+                sx: { px: 1 },
+              }}
+            />
+            <IconButton size="small">
+              <EmojiEmotionsIcon />
+            </IconButton>
+            <IconButton
+              size="small"
+              onClick={handleSendMessage}
+              disabled={!input.trim()}
+              sx={{
+                mr: 0.5,
+                "&:not(:disabled)": {
+                  color: theme.palette.primary.main,
+                },
+              }}
+            >
+              <SendIcon />
+            </IconButton>
+          </Paper>
+        </MessageInput>
+      </ChatContainer>
+
+      {/* Edit Message Dialog */}
+      <Dialog
+        open={isEditDialogOpen}
+        onClose={() => setIsEditDialogOpen(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Edit Message</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={4}
+            value={editingMessage?.content || ""}
+            onChange={(e) =>
+              setEditingMessage((prev) =>
+                prev ? { ...prev, content: e.target.value } : null
+              )
+            }
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleSaveEdit} variant="contained">
+            Save
+          </Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
+  );
+}
