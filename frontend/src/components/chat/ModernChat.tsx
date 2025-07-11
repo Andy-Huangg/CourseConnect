@@ -7,10 +7,7 @@ import {
   Avatar,
   Paper,
   Chip,
-  Menu,
-  MenuItem,
   Tooltip,
-  Divider,
   Switch,
   FormControlLabel,
   Dialog,
@@ -23,7 +20,6 @@ import { styled, useTheme } from "@mui/material/styles";
 import SendIcon from "@mui/icons-material/Send";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import TagIcon from "@mui/icons-material/Tag";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -133,7 +129,6 @@ export default function ModernChat({
     content: string;
   } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const { enrolledCourses, isLoading: coursesLoading } = useCourses();
@@ -324,15 +319,6 @@ export default function ModernChat({
   };
 
   const currentUserId = getCurrentUserId();
-
-  const handleMenuClick = (event: React.MouseEvent<HTMLElement>) => {
-    setAnchorEl(event.currentTarget);
-  };
-
-  const handleMenuClose = () => {
-    setAnchorEl(null);
-  };
-
   const currentCourse = enrolledCourses.find(
     (course) => course.id === selectedCourse
   );
