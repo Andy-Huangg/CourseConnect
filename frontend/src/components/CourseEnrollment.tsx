@@ -211,6 +211,24 @@ export default function CourseEnrollment() {
         All Available Courses
       </Typography>
 
+      {/* Help Message */}
+      <Alert
+        severity="info"
+        sx={{
+          mb: 3,
+          backgroundColor: "rgba(102, 51, 153, 0.05)",
+          borderColor: "rgba(102, 51, 153, 0.2)",
+          "& .MuiAlert-icon": {
+            color: "primary.main",
+          },
+        }}
+      >
+        <Typography variant="body2">
+          Can't see your course? <strong>Create it</strong> using the "Create
+          Course" button above.
+        </Typography>
+      </Alert>
+
       <Box
         sx={{
           display: "grid",

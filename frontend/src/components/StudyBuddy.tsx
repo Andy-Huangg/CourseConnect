@@ -42,7 +42,15 @@ interface Course {
   userCount?: number;
 }
 
-export default function StudyBuddy() {
+interface StudyBuddyProps {
+  onChatBuddy?: (buddy: {
+    id: number;
+    username: string;
+    displayName: string;
+  }) => void;
+}
+
+export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
   const [studyBuddies, setStudyBuddies] = useState<StudyBuddy[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<number | null>(null);
@@ -61,11 +69,7 @@ export default function StudyBuddy() {
       if (!token) return null;
 
       const payload = JSON.parse(atob(token.split(".")[1]));
-      return (
-        payload[
-          "http://schemas.xmlsoap.org/ws/2005/05/identity/claims/nameidentifier"
-        ] || payload.sub
-      );
+      return payload.userId; // Use the userId claim which contains the actual numeric user ID
     } catch {
       return null;
     }
@@ -417,9 +421,15 @@ export default function StudyBuddy() {
                           <Button
                             variant="contained"
                             color="primary"
-                            onClick={() =>
-                              setChatBuddy(studyBuddy?.buddy || null)
-                            }
+                            onClick={() => {
+                              if (studyBuddy?.buddy) {
+                                if (onChatBuddy) {
+                                  onChatBuddy(studyBuddy.buddy);
+                                } else {
+                                  setChatBuddy(studyBuddy.buddy);
+                                }
+                              }
+                            }}
                             disabled={isLoading}
                             startIcon={
                               isLoading ? (
