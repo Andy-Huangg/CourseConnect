@@ -189,7 +189,7 @@ export function usePrivateMessages(recipientId?: number) {
           if (!token) return null;
 
           const payload = JSON.parse(atob(token.split(".")[1]));
-          return parseInt(payload.userId || payload.sub || "0");
+          return parseInt(payload.userId); // Use the userId claim which contains the actual numeric user ID
         } catch {
           return null;
         }

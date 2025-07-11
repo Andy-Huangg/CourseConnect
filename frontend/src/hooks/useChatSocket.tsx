@@ -115,7 +115,6 @@ export function useChatSocket(
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log("Connection already in progress, skipping...");
       return;
     }
 
@@ -128,7 +127,6 @@ export function useChatSocket(
         currentState === WebSocket.OPEN ||
         currentState === WebSocket.CONNECTING
       ) {
-        console.log("Already connected to this course, skipping...");
         return;
       }
     }
@@ -142,7 +140,6 @@ export function useChatSocket(
         currentState !== WebSocket.CLOSED &&
         currentState !== WebSocket.CLOSING
       ) {
-        console.log("Closing existing connection before creating new one");
         socketRef.current.close(1000);
       }
 
@@ -161,8 +158,6 @@ export function useChatSocket(
     // Add anonymous parameter to URL
     const finalUrl = `${urlWithToken}&anonymous=${isAnonymous}`;
 
-    console.log(`Creating WebSocket connection to: ${finalUrl}`);
-
     try {
       isConnectingRef.current = true;
       socketRef.current = new WebSocket(finalUrl);
@@ -173,7 +168,6 @@ export function useChatSocket(
     }
 
     socketRef.current.onopen = () => {
-      console.log("WebSocket connection opened successfully");
       isConnectingRef.current = false;
       reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
     };
@@ -299,20 +293,12 @@ export function useChatSocket(
     };
 
     socketRef.current.onclose = (event) => {
-      console.log(
-        `WebSocket connection closed with code: ${event.code}, reason: ${event.reason}`
-      );
       isConnectingRef.current = false;
       // Auto-reconnect with exponential backoff (unless manually closed)
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.min(
           1000 * Math.pow(2, reconnectAttemptsRef.current),
           30000
-        );
-        console.log(
-          `Attempting to reconnect in ${delay}ms (attempt ${
-            reconnectAttemptsRef.current + 1
-          })`
         );
         reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current++;
@@ -337,16 +323,18 @@ export function useChatSocket(
       clearTimeout(reconnectTimeoutRef.current);
     }
 
-    if (!courseId || !url) {
+    if (!url || !courseId) {
       // Close any existing connection when no course is selected
       closeWebSocket();
       return;
     }
 
-    // Fetch previous messages for the new course
-    fetchChatHistory(courseId);
+    // Fetch previous messages for the course
+    if (courseId) {
+      fetchChatHistory(courseId);
+    }
 
-    // Close existing connection first if we're switching courses
+    // Close existing connection first if we're switching courses/buddies
     if (currentCourseIdRef.current !== courseId && socketRef.current) {
       closeWebSocket();
     }
@@ -386,7 +374,10 @@ export function useChatSocket(
   }, [isAnonymous, connectWebSocket, closeWebSocket, courseId, url]);
 
   const sendMessage = useCallback((message: string) => {
-    if (socketRef.current?.readyState === WebSocket.OPEN && message.trim()) {
+    if (!message.trim()) return;
+
+    // Handle course messages via WebSocket
+    if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(message.trim());
     }
   }, []);
@@ -395,6 +386,7 @@ export function useChatSocket(
     async (messageId: number, newContent: string) => {
       try {
         const token = localStorage.getItem("jwt");
+
         const response = await fetch(
           `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
           {
@@ -408,7 +400,6 @@ export function useChatSocket(
         );
 
         if (response.ok) {
-          // Don't update local state - WebSocket will handle the real-time update
           return { success: true };
         } else {
           const errorData = await response.json();
@@ -428,6 +419,7 @@ export function useChatSocket(
   const deleteMessage = useCallback(async (messageId: number) => {
     try {
       const token = localStorage.getItem("jwt");
+
       const response = await fetch(
         `${import.meta.env.VITE_API_URL}/api/Chat/${messageId}`,
         {
@@ -440,7 +432,6 @@ export function useChatSocket(
       );
 
       if (response.ok) {
-        // Don't update local state - WebSocket will handle the real-time update
         return { success: true };
       } else {
         const errorData = await response.json();
