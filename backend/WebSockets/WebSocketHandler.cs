@@ -248,6 +248,50 @@ namespace backend.WebSockets
             }
         }
 
+        public static async Task BroadcastCourseNotificationToGlobal(int courseId, int senderId, string senderName)
+        {
+            const int globalCourseId = 1;
+            List<WebSocket> openClients;
+
+            lock (_lock)
+            {
+                if (!_courseClients.ContainsKey(globalCourseId))
+                    return;
+
+                openClients = _courseClients[globalCourseId].Where(c => c.State == WebSocketState.Open).ToList();
+            }
+
+            var notificationDto = new
+            {
+                type = "COURSE_MESSAGE_NOTIFICATION",
+                courseId = courseId,
+                senderId = senderId,
+                senderName = senderName,
+                timestamp = DateTime.UtcNow.ToString("o")
+            };
+
+            var jsonMessage = System.Text.Json.JsonSerializer.Serialize(notificationDto);
+            var formattedMessage = $"COURSE_NOTIFICATION:{jsonMessage}";
+            var sendBuffer = Encoding.UTF8.GetBytes(formattedMessage);
+
+            Console.WriteLine($"Broadcasting course notification to {openClients.Count} Global course clients: Course {courseId}, Sender {senderId}");
+
+            foreach (var client in openClients)
+            {
+                try
+                {
+                    await client.SendAsync(new ArraySegment<byte>(sendBuffer),
+                                           WebSocketMessageType.Text,
+                                           true,
+                                           CancellationToken.None);
+                }
+                catch
+                {
+                    // Ignore errors for disconnected clients
+                }
+            }
+        }
+
         public static async Task HandleChatConnectionAsync(HttpContext context, WebSocket webSocket, IChatRepository chatRepository, ICourseRepository courseRepository, IAnonymousNameService anonymousNameService, IUserRepository userRepository)
         {
             // Validation is already done before this method is called
@@ -378,6 +422,9 @@ namespace backend.WebSockets
                                 // Remove disconnected clients
                             }
                         }
+
+                        // Also broadcast course notification to Global course for indicator updates
+                        await BroadcastCourseNotificationToGlobal(courseId, userId, chatMessage.DisplayName);
                     }
                     else if (result.MessageType == WebSocketMessageType.Close)
                     {
