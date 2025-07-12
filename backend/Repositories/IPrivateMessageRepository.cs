@@ -9,8 +9,7 @@ namespace backend.Repositories
         Task<PrivateMessage?> GetMessageByIdAsync(int messageId);
         Task<bool> UpdateMessageAsync(PrivateMessage message);
         Task<bool> DeleteMessageAsync(int messageId);
-        Task<bool> MarkAsReadAsync(int messageId, int userId);
-        Task<int> GetUnreadCountAsync(int userId);
-        Task<Dictionary<int, int>> GetUnreadCountsByUserAsync(int userId);
+        Task MarkAllMessagesFromUserAsReadAsync(int fromUserId, int toUserId);
+        Task<bool> HasNewMessagesFromUserAsync(int fromUserId, int toUserId);
     }
 }

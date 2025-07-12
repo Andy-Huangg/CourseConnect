@@ -181,48 +181,72 @@ namespace backend.Controllers
             return Ok(new { success = true, message = "Message deleted successfully" });
         }
 
-        // POST: api/PrivateMessage/{messageId}/read
-        [HttpPost("{messageId}/read")]
-        public async Task<IActionResult> MarkAsRead(int messageId)
+        // POST: api/PrivateMessage/mark-conversation-viewed/{userId}
+        [HttpPost("mark-conversation-viewed/{userId}")]
+        public async Task<IActionResult> MarkConversationAsViewed(int userId)
         {
             var userIdClaim = User.FindFirst("userId");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
             {
                 return Unauthorized("Invalid user token - userId claim not found");
             }
 
-            var success = await _privateMessageRepo.MarkAsReadAsync(messageId, userId);
+            // Mark all messages from this user as read
+            await _privateMessageRepo.MarkAllMessagesFromUserAsReadAsync(userId, currentUserId);
 
-            if (!success)
-            {
-                return BadRequest("Failed to mark message as read");
-            }
-
-            // Get the message to find the sender
-            var message = await _privateMessageRepo.GetMessageByIdAsync(messageId);
-            if (message != null)
-            {
-                // Broadcast read status to sender
-                await WebSocketHandler.BroadcastPrivateMessageRead(message.SenderId, messageId);
-            }
-
-            return Ok(new { success = true, message = "Message marked as read" });
+            return Ok(new { success = true });
         }
 
-        // GET: api/PrivateMessage/unread-count
-        [HttpGet("unread-count")]
-        public async Task<IActionResult> GetUnreadCount()
+        // POST: api/PrivateMessage/{messageId}/read
+        [HttpPost("{messageId}/read")]
+        public async Task<IActionResult> MarkMessageAsRead(int messageId)
         {
             var userIdClaim = User.FindFirst("userId");
-            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
             {
                 return Unauthorized("Invalid user token - userId claim not found");
             }
 
-            var unreadCount = await _privateMessageRepo.GetUnreadCountAsync(userId);
-            var unreadCountsByUser = await _privateMessageRepo.GetUnreadCountsByUserAsync(userId);
+            var message = await _privateMessageRepo.GetMessageByIdAsync(messageId);
+            if (message == null)
+            {
+                return NotFound("Message not found");
+            }
 
-            return Ok(new { totalUnread = unreadCount, unreadByUser = unreadCountsByUser });
+            // Only the recipient can mark a message as read
+            if (message.RecipientId != currentUserId)
+            {
+                return StatusCode(403, "You can only mark messages sent to you as read");
+            }
+
+            // Update the message's read status
+            if (message.ReadAt == null) // Only update if not already read
+            {
+                message.ReadAt = DateTime.UtcNow;
+                var success = await _privateMessageRepo.UpdateMessageAsync(message);
+
+                if (success)
+                {
+                    // Broadcast read status to sender via WebSocket
+                    await WebSocketHandler.BroadcastPrivateMessageRead(message.SenderId, messageId);
+                }
+            }
+
+            return Ok(new { success = true });
+        }
+
+        // GET: api/PrivateMessage/has-new-messages/{userId}
+        [HttpGet("has-new-messages/{userId}")]
+        public async Task<IActionResult> HasNewMessagesFromUser(int userId)
+        {
+            var userIdClaim = User.FindFirst("userId");
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int currentUserId))
+            {
+                return Unauthorized("Invalid user token - userId claim not found");
+            }
+
+            var hasNewMessages = await _privateMessageRepo.HasNewMessagesFromUserAsync(userId, currentUserId);
+            return Ok(new { hasNewMessages });
         }
     }
 

@@ -83,35 +83,40 @@ namespace backend.Repositories
             }
         }
 
-        public async Task<bool> MarkAsReadAsync(int messageId, int userId)
+        public async Task MarkAllMessagesFromUserAsReadAsync(int fromUserId, int toUserId)
         {
-            try
-            {
-                var message = await _context.PrivateMessages.FindAsync(messageId);
-                if (message == null || message.RecipientId != userId) return false;
+            // Simple approach: mark all unread messages from this user as read
+            var unreadMessages = await _context.PrivateMessages
+                .Where(pm => pm.SenderId == fromUserId &&
+                           pm.RecipientId == toUserId &&
+                           pm.ReadAt == null &&
+                           !pm.IsDeleted)
+                .ToListAsync();
 
+            foreach (var message in unreadMessages)
+            {
                 message.ReadAt = DateTime.UtcNow;
-                await _context.SaveChangesAsync();
-                return true;
             }
-            catch
+
+            if (unreadMessages.Any())
             {
-                return false;
+                await _context.SaveChangesAsync();
             }
         }
 
-        public async Task<int> GetUnreadCountAsync(int userId)
+        public async Task<bool> HasNewMessagesFromUserAsync(int fromUserId, int toUserId)
         {
-            return await _context.PrivateMessages
-                .CountAsync(pm => pm.RecipientId == userId && pm.ReadAt == null && !pm.IsDeleted);
-        }
+            // Simple flag: check if there's at least one unread message from this user
+            // Use a more efficient query with FirstOrDefaultAsync to stop as soon as we find one
+            var hasUnreadMessage = await _context.PrivateMessages
+                .Where(pm => pm.SenderId == fromUserId &&
+                           pm.RecipientId == toUserId &&
+                           pm.ReadAt == null &&
+                           !pm.IsDeleted)
+                .Select(pm => pm.Id) // Only select the ID to minimize data transfer
+                .FirstOrDefaultAsync();
 
-        public async Task<Dictionary<int, int>> GetUnreadCountsByUserAsync(int userId)
-        {
-            return await _context.PrivateMessages
-                .Where(pm => pm.RecipientId == userId && pm.ReadAt == null && !pm.IsDeleted)
-                .GroupBy(pm => pm.SenderId)
-                .ToDictionaryAsync(g => g.Key, g => g.Count());
+            return hasUnreadMessage != 0; // FirstOrDefaultAsync returns 0 for int if no record found
         }
     }
 }

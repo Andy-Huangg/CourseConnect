@@ -15,6 +15,7 @@ namespace backend.Repositories
         Task<bool> EnrollUserAsync(int userId, int courseId);
         Task<bool> UnenrollUserAsync(int userId, int courseId);
         Task<bool> IsUserEnrolledAsync(int userId, int courseId);
+        Task<IEnumerable<int>> GetEnrolledUserIdsAsync(int courseId);
 
         // User count method
         Task<int> GetUserCountAsync(int courseId);

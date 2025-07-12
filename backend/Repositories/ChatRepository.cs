@@ -47,6 +47,40 @@ namespace backend.Repositories
                 await _context.SaveChangesAsync();
             }
         }
+
+        public async Task MarkAllCourseMessagesAsReadAsync(int courseId, int userId)
+        {
+            // Get all unread messages in this course for this user
+            var unreadMessages = await _context.ChatMessages
+                .Where(m => m.CourseId == courseId &&
+                           !m.IsDeleted &&
+                           m.SenderId != userId.ToString() && // Don't mark own messages
+                           !_context.ChatMessageReads.Any(cmr => cmr.MessageId == m.Id && cmr.UserId == userId))
+                .Select(m => m.Id)
+                .ToListAsync();
+
+            if (unreadMessages.Any())
+            {
+                var messageReads = unreadMessages.Select(messageId => new ChatMessageRead
+                {
+                    MessageId = messageId,
+                    UserId = userId,
+                    ReadAt = DateTime.UtcNow
+                }).ToList();
+
+                _context.ChatMessageReads.AddRange(messageReads);
+                await _context.SaveChangesAsync();
+            }
+        }
+
+        public async Task<bool> HasNewMessagesAsync(int courseId, int userId)
+        {
+            return await _context.ChatMessages
+                .AnyAsync(m => m.CourseId == courseId &&
+                              !m.IsDeleted &&
+                              m.SenderId != userId.ToString() && // Don't count own messages
+                              !_context.ChatMessageReads.Any(cmr => cmr.MessageId == m.Id && cmr.UserId == userId));
+        }
     }
 
 }

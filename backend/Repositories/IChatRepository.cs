@@ -9,6 +9,8 @@ namespace backend.Repositories
         Task<ChatMessage?> GetMessageByIdAsync(int messageId);
         Task UpdateMessageAsync(ChatMessage message);
         Task DeleteMessageAsync(int messageId);
+        Task MarkAllCourseMessagesAsReadAsync(int courseId, int userId);
+        Task<bool> HasNewMessagesAsync(int courseId, int userId);
     }
 
 }

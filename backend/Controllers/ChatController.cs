@@ -4,9 +4,7 @@ using backend.Services;
 using backend.WebSockets;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
-
 
 namespace backend.Controllers
 {
@@ -107,6 +105,36 @@ namespace backend.Controllers
             await WebSocketHandler.BroadcastMessageDelete(message.CourseId, messageId);
 
             return Ok(new MessageActionResponseDto { Success = true, Message = "Message deleted successfully" });
+        }
+
+        // POST: api/Chat/mark-course-viewed/{courseId}
+        [HttpPost("mark-course-viewed/{courseId}")]
+        public async Task<IActionResult> MarkCourseAsViewed(int courseId)
+        {
+            var userIdClaim = User.FindFirst("userId");
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token - userId claim not found");
+            }
+
+            // Mark all messages in this course as read for this user
+            await _chatRepo.MarkAllCourseMessagesAsReadAsync(courseId, userId);
+
+            return Ok(new { success = true });
+        }
+
+        // GET: api/Chat/has-new-messages/{courseId}
+        [HttpGet("has-new-messages/{courseId}")]
+        public async Task<IActionResult> HasNewMessages(int courseId)
+        {
+            var userIdClaim = User.FindFirst("userId");
+            if (userIdClaim == null || !int.TryParse(userIdClaim.Value, out int userId))
+            {
+                return Unauthorized("Invalid user token - userId claim not found");
+            }
+
+            var hasNewMessages = await _chatRepo.HasNewMessagesAsync(courseId, userId);
+            return Ok(new { hasNewMessages });
         }
     }
 }

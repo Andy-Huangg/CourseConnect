@@ -155,6 +155,14 @@ namespace backend.Repositories
                 .AnyAsync(c => c.Id == courseId);
         }
 
+        public async Task<IEnumerable<int>> GetEnrolledUserIdsAsync(int courseId)
+        {
+            return await _context.User
+                .Where(u => u.Courses.Any(c => c.Id == courseId))
+                .Select(u => u.Id)
+                .ToListAsync();
+        }
+
         public async Task<int> GetUserCountAsync(int courseId)
         {
             return await _context.User
