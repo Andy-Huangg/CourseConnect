@@ -82,6 +82,23 @@ namespace backend.Controllers
                 return Unauthorized(new { message = "Invalid username or password." });
             }
 
+            // Ensure user is enrolled in Global course (for existing users who might not have been auto-enrolled)
+            const int globalCourseId = 1;
+            try
+            {
+                var isEnrolledInGlobal = await _courseRepo.IsUserEnrolledAsync(user.Id, globalCourseId);
+                if (!isEnrolledInGlobal)
+                {
+                    await _courseRepo.EnrollUserAsync(user.Id, globalCourseId);
+                    Console.WriteLine($"Auto-enrolled existing user {user.Id} in Global course during login");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Log the error but don't fail login if Global course enrollment fails
+                Console.WriteLine($"Warning: Failed to ensure user {user.Id} is enrolled in Global course: {ex.Message}");
+            }
+
             // Generate JWT token
             var token = GenerateJwtToken(user.Id, user.Username);
             return Ok(new { token });
