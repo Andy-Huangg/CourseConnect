@@ -10,6 +10,7 @@ namespace backend.Models
 
         public DbSet<User> User { get; set; }
         public DbSet<ChatMessage> ChatMessages { get; set; }
+        public DbSet<ChatMessageRead> ChatMessageReads { get; set; }
         public DbSet<Course> Courses { get; set; }
         public DbSet<StudyBuddy> StudyBuddies { get; set; }
         public DbSet<PrivateMessage> PrivateMessages { get; set; }
@@ -72,6 +73,24 @@ namespace backend.Models
                 .WithMany()
                 .HasForeignKey(pm => pm.RecipientId)
                 .OnDelete(DeleteBehavior.NoAction);
+
+            // Configure ChatMessageRead relationships
+            modelBuilder.Entity<ChatMessageRead>()
+                .HasOne(cmr => cmr.Message)
+                .WithMany()
+                .HasForeignKey(cmr => cmr.MessageId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            modelBuilder.Entity<ChatMessageRead>()
+                .HasOne(cmr => cmr.User)
+                .WithMany()
+                .HasForeignKey(cmr => cmr.UserId)
+                .OnDelete(DeleteBehavior.NoAction);
+
+            // Ensure one read record per user per message
+            modelBuilder.Entity<ChatMessageRead>()
+                .HasIndex(cmr => new { cmr.MessageId, cmr.UserId })
+                .IsUnique();
         }
     }
 }
