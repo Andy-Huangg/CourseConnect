@@ -131,10 +131,10 @@ export default function CourseOverview({
           <StatsCard>
             <ChatIcon color="primary" sx={{ mb: 1 }} />
             <Typography variant="h6" fontWeight="bold">
-              0
+              ∞
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              Unread Messages
+              Active Chats
             </Typography>
           </StatsCard>
           <StatsCard>

@@ -75,15 +75,25 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
 
-  // Mark messages as read when they come into view
+  // Mark messages as read when they come into view (debounced)
   useEffect(() => {
     const unreadMessages = messages.filter(
       (msg) => !msg.isRead && msg.recipientId === currentUserId
     );
 
-    unreadMessages.forEach((msg) => {
-      markAsRead(msg.id);
-    });
+    // Only proceed if there are actually unread messages
+    if (unreadMessages.length === 0) {
+      return;
+    }
+
+    // Debounce the marking to avoid excessive API calls
+    const timeoutId = setTimeout(() => {
+      // Limit to 3 most recent unread messages to avoid API spam
+      const messagesToMark = unreadMessages.slice(-3);
+      messagesToMark.forEach((msg) => markAsRead(msg.id));
+    }, 1000); // 1 second delay
+
+    return () => clearTimeout(timeoutId);
   }, [messages, currentUserId, markAsRead]);
 
   const handleSendMessage = async () => {

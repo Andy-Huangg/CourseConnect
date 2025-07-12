@@ -27,6 +27,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { useCourses } from "../../hooks/useCourses";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { usePrivateMessages } from "../../hooks/usePrivateMessages";
+import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
 
 // Styled components
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -109,12 +110,14 @@ interface ModernChatProps {
   wsBase: string;
   selectedCourse?: number;
   buddy?: { id: number; username: string; displayName: string };
+  markCourseMessageAsRead?: (messageId: number) => Promise<void>;
 }
 
 export default function ModernChat({
   wsBase,
   selectedCourse: propSelectedCourse,
   buddy,
+  markCourseMessageAsRead,
 }: ModernChatProps) {
   const theme = useTheme();
   const [input, setInput] = useState("");
@@ -130,6 +133,20 @@ export default function ModernChat({
   } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const getCurrentUserId = () => {
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) return null;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.userId; // Use the userId claim which contains the actual numeric user ID
+    } catch {
+      return null;
+    }
+  };
+
+  const currentUserId = getCurrentUserId();
 
   const { enrolledCourses, isLoading: coursesLoading } = useCourses();
 
@@ -166,7 +183,39 @@ export default function ModernChat({
     editMessage: editPrivateMessage,
     deleteMessage: deletePrivateMessage,
     isLoading: privateLoading,
+    markAsRead: markPrivateMessageAsRead,
   } = usePrivateMessages(buddy?.id);
+
+  // Get the new message indicators context
+  const { handleCourseMessageUpdate } = useNewMessageIndicatorsContext();
+
+  // Track previous message count to detect new messages
+  const previousMessageCountRef = useRef(0);
+
+  // Effect to detect new course messages and update indicators
+  useEffect(() => {
+    if (!buddy && selectedCourse && courseMessages.length > 0) {
+      const currentMessageCount = courseMessages.length;
+      const previousCount = previousMessageCountRef.current;
+
+      console.log(
+        `Course ${selectedCourse} - Messages: ${currentMessageCount}, Previous: ${previousCount}`
+      );
+
+      // If we have more messages than before, a new message was received
+      if (currentMessageCount > previousCount && previousCount > 0) {
+        const newMessage = courseMessages[courseMessages.length - 1];
+        console.log(
+          `New message detected in course ${selectedCourse} from user ${newMessage.senderId}`
+        );
+
+        // Call the indicator update function
+        handleCourseMessageUpdate(selectedCourse, newMessage.senderId);
+      }
+
+      previousMessageCountRef.current = currentMessageCount;
+    }
+  }, [courseMessages, buddy, selectedCourse, handleCourseMessageUpdate]);
 
   // Use the appropriate data based on whether we're in buddy chat or course chat
   const messages = buddy ? privateMessages : courseMessages;
@@ -248,6 +297,65 @@ export default function ModernChat({
     scrollToBottom();
   }, [messages]);
 
+  // Mark messages as read when they're displayed (with performance optimizations)
+  useEffect(() => {
+    if (messages.length === 0 || !currentUserId) return;
+
+    const markMessagesAsReadDebounced = async () => {
+      if (buddy && markPrivateMessageAsRead) {
+        // For private messages: only mark unread messages from the buddy
+        const unreadMessages = messages.filter(
+          (msg) =>
+            msg.senderId !== currentUserId.toString() &&
+            "isRead" in msg &&
+            !msg.isRead // Type guard to check if it's a PrivateMessage
+        );
+
+        // Only proceed if there are actually unread messages
+        if (unreadMessages.length === 0) return;
+
+        // Mark private messages as read one by one (existing API doesn't support batch)
+        // But limit to 3 most recent to avoid spam
+        const messagesToMark = unreadMessages.slice(-3);
+        for (const msg of messagesToMark) {
+          try {
+            await markPrivateMessageAsRead(msg.id);
+          } catch (error) {
+            console.error("Failed to mark private message as read:", error);
+          }
+        }
+      } else if (markCourseMessageAsRead && selectedCourse) {
+        // For course messages: use the throttled batch function
+        const unreadMessages = messages.filter(
+          (msg) => msg.senderId !== currentUserId.toString()
+        );
+
+        // Only proceed if there are actually unread messages
+        if (unreadMessages.length === 0) return;
+
+        // Use the throttled function which will batch the requests automatically
+        const messagesToMark = unreadMessages.slice(-5); // Only mark 5 most recent
+        messagesToMark.forEach((msg) => {
+          markCourseMessageAsRead(msg.id).catch((error) => {
+            console.error("Failed to mark course message as read:", error);
+          });
+        });
+      }
+    };
+
+    // Debounce the marking to avoid excessive calls
+    const timeoutId = setTimeout(markMessagesAsReadDebounced, 2000); // Increased to 2 seconds
+
+    return () => clearTimeout(timeoutId);
+  }, [
+    messages,
+    currentUserId,
+    buddy,
+    markPrivateMessageAsRead,
+    markCourseMessageAsRead,
+    selectedCourse,
+  ]);
+
   const handleSendMessage = async () => {
     if (input.trim()) {
       if (buddy) {
@@ -306,19 +414,6 @@ export default function ModernChat({
     }
   };
 
-  const getCurrentUserId = () => {
-    try {
-      const token = localStorage.getItem("jwt");
-      if (!token) return null;
-
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.userId; // Use the userId claim which contains the actual numeric user ID
-    } catch {
-      return null;
-    }
-  };
-
-  const currentUserId = getCurrentUserId();
   const currentCourse = enrolledCourses.find(
     (course) => course.id === selectedCourse
   );

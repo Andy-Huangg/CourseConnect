@@ -16,19 +16,10 @@ export interface PrivateMessage {
   isRead: boolean;
 }
 
-export interface UnreadCounts {
-  totalUnread: number;
-  unreadByUser: { [userId: string]: number };
-}
-
 export function usePrivateMessages(recipientId?: number) {
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [unreadCounts, setUnreadCounts] = useState<UnreadCounts>({
-    totalUnread: 0,
-    unreadByUser: {},
-  });
 
   const getHeaders = () => {
     const token = localStorage.getItem("jwt");
@@ -162,24 +153,6 @@ export function usePrivateMessages(recipientId?: number) {
     }
   }, []);
 
-  const fetchUnreadCounts = useCallback(async () => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/PrivateMessage/unread-count`,
-        {
-          headers: getHeaders(),
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setUnreadCounts(data);
-      }
-    } catch (error) {
-      console.error("Error fetching unread counts:", error);
-    }
-  }, []);
-
   // WebSocket integration for real-time updates
   const handlePrivateMessageUpdate = useCallback(
     (update: PrivateMessageUpdateData) => {
@@ -219,8 +192,6 @@ export function usePrivateMessages(recipientId?: number) {
                 }
                 return [...prev, message];
               });
-              // Update unread counts
-              fetchUnreadCounts();
             }
           }
           break;
@@ -249,20 +220,25 @@ export function usePrivateMessages(recipientId?: number) {
                 msg.id === update.messageId ? { ...msg, isRead: true } : msg
               )
             );
-            // Update unread counts
-            fetchUnreadCounts();
           }
           break;
       }
     },
-    [recipientId, fetchUnreadCounts]
+    [recipientId]
   );
 
-  usePrivateMessageSocket(handlePrivateMessageUpdate);
+  // Only connect to WebSocket if we have a recipient
+  usePrivateMessageSocket(recipientId ? handlePrivateMessageUpdate : null);
 
   const markAsRead = useCallback(
     async (messageId: number) => {
       try {
+        // Check if message is already read to avoid unnecessary requests
+        const message = messages.find((m) => m.id === messageId);
+        if (message && message.isRead) {
+          return; // Already read, no need to make request
+        }
+
         const response = await fetch(
           `${
             import.meta.env.VITE_API_URL
@@ -274,19 +250,22 @@ export function usePrivateMessages(recipientId?: number) {
         );
 
         if (response.ok) {
+          // Update local state immediately for better UX
           setMessages((prev) =>
             prev.map((msg) =>
               msg.id === messageId ? { ...msg, isRead: true } : msg
             )
           );
-          // Refresh unread counts
-          fetchUnreadCounts();
+        } else {
+          // Don't spam the console with errors - the WebSocket will handle updates
+          console.debug("Failed to mark message as read:", response.status);
         }
       } catch (error) {
-        console.error("Error marking message as read:", error);
+        // Reduced logging to prevent console spam
+        console.debug("Error marking message as read:", error);
       }
     },
-    [fetchUnreadCounts]
+    [messages]
   );
 
   // Auto-fetch messages when recipientId changes
@@ -296,21 +275,17 @@ export function usePrivateMessages(recipientId?: number) {
     }
   }, [recipientId, fetchMessages]);
 
-  // Fetch unread counts on component mount
-  useEffect(() => {
-    fetchUnreadCounts();
-  }, [fetchUnreadCounts]);
+  // Only fetch unread counts when we have a recipient and for specific message updates
+  // The global unread counts are handled by a separate hook
 
   return {
     messages,
     isLoading,
     error,
-    unreadCounts,
     sendMessage,
     editMessage,
     deleteMessage,
     markAsRead,
     fetchMessages,
-    fetchUnreadCounts,
   };
 }

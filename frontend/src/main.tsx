@@ -6,6 +6,7 @@ import { Provider } from "react-redux";
 import { store } from "./app/store";
 import { ThemeProvider } from "./theme/ThemeProvider";
 import { CourseProvider } from "./context/CourseContext";
+import { NewMessageIndicatorsProvider } from "./context/NewMessageIndicatorsProvider.tsx";
 import App from "./App.tsx";
 import Signup from "./auth/Signup.tsx";
 import Login from "./auth/Login.tsx";
@@ -48,7 +49,9 @@ ReactDOM.createRoot(rootElement).render(
     <Provider store={store}>
       <ThemeProvider>
         <CourseProvider>
-          <RouterProvider router={router} />
+          <NewMessageIndicatorsProvider>
+            <RouterProvider router={router} />
+          </NewMessageIndicatorsProvider>
         </CourseProvider>
       </ThemeProvider>
     </Provider>

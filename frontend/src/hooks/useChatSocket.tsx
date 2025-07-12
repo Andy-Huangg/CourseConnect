@@ -191,6 +191,15 @@ export function useChatSocket(
           return;
         }
 
+        // Handle unread count updates (ignore them silently in chat socket)
+        if (
+          jsonData.type === "COURSE_UNREAD_COUNT_UPDATE" ||
+          jsonData.type === "UNREAD_COUNT_UPDATE"
+        ) {
+          // These are handled by the global unread counts hook, ignore in chat
+          return;
+        }
+
         // If it's JSON but not a known type, log as unknown
         console.warn("Unknown JSON WebSocket message format:", jsonData);
         return;

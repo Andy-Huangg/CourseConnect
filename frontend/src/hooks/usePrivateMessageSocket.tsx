@@ -17,13 +17,16 @@ export interface PrivateMessageUpdateData {
     | "PRIVATE_MESSAGE_NEW"
     | "PRIVATE_MESSAGE_UPDATED"
     | "PRIVATE_MESSAGE_DELETED"
-    | "PRIVATE_MESSAGE_READ";
+    | "PRIVATE_MESSAGE_READ"
+    | "UNREAD_COUNT_UPDATE";
   message?: PrivateMessage;
   messageId?: number;
+  totalUnread?: number;
+  unreadByUser?: { [userId: string]: number };
 }
 
 export function usePrivateMessageSocket(
-  onPrivateMessageUpdate: (update: PrivateMessageUpdateData) => void
+  onPrivateMessageUpdate: ((update: PrivateMessageUpdateData) => void) | null
 ) {
   const socketRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<number | null>(null);
@@ -128,7 +131,11 @@ export function usePrivateMessageSocket(
       try {
         const data = JSON.parse(event.data);
 
-        if (data.type && data.type.startsWith("PRIVATE_MESSAGE_")) {
+        if (
+          data.type &&
+          data.type.startsWith("PRIVATE_MESSAGE_") &&
+          onPrivateMessageUpdate
+        ) {
           onPrivateMessageUpdate(data as PrivateMessageUpdateData);
         }
       } catch {
@@ -165,6 +172,11 @@ export function usePrivateMessageSocket(
   }, [onPrivateMessageUpdate]);
 
   useEffect(() => {
+    // Only connect if we have a callback function (meaning we actually want to listen to messages)
+    if (!onPrivateMessageUpdate) {
+      return;
+    }
+
     // Connect with a small delay to prevent rapid reconnection
     cleanupTimeoutRef.current = setTimeout(() => {
       connectWebSocket();
@@ -176,7 +188,7 @@ export function usePrivateMessageSocket(
       }
       closeWebSocket();
     };
-  }, [connectWebSocket, closeWebSocket]);
+  }, [connectWebSocket, closeWebSocket, onPrivateMessageUpdate]);
 
   return {
     isConnected: socketRef.current?.readyState === WebSocket.OPEN,

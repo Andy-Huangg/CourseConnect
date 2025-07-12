@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   Box,
   AppBar,
@@ -14,7 +14,6 @@ import {
   ListItemText,
   Avatar,
   Tooltip,
-  Chip,
 } from "@mui/material";
 import { styled, useTheme as useMuiTheme } from "@mui/material/styles";
 import MenuIcon from "@mui/icons-material/Menu";
@@ -36,6 +35,7 @@ import ModernChat from "../chat/ModernChat";
 import CourseOverview from "../CourseOverview";
 import { useCourses } from "../../hooks/useCourses";
 import { useStudyBuddies } from "../../hooks/useStudyBuddies";
+import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
 
 const drawerWidth = 280;
 
@@ -123,6 +123,35 @@ export default function ChatLayout() {
   const { user } = useAppSelector((state) => state.auth);
   const { enrolledCourses } = useCourses();
   const { matchedBuddies } = useStudyBuddies();
+  const {
+    checkCourseIndicators,
+    checkPrivateIndicators,
+    markCourseAsViewed,
+    markPrivateConversationAsViewed,
+    getCourseIndicator,
+    getPrivateIndicator,
+  } = useNewMessageIndicatorsContext();
+
+  const hasCheckedInitialIndicators = useRef(false);
+  const hasCheckedPrivateIndicators = useRef(false);
+
+  // Only check indicators when user navigates or on initial load
+  useEffect(() => {
+    if (enrolledCourses.length > 0 && !hasCheckedInitialIndicators.current) {
+      const courseIds = enrolledCourses.map((course) => course.id);
+      checkCourseIndicators(courseIds);
+      hasCheckedInitialIndicators.current = true;
+    }
+  }, [enrolledCourses, checkCourseIndicators]);
+
+  // Check private message indicators only once when buddies are first available
+  useEffect(() => {
+    if (matchedBuddies.length > 0 && !hasCheckedPrivateIndicators.current) {
+      const userIds = matchedBuddies.map((buddy) => buddy.buddy!.id);
+      checkPrivateIndicators(userIds);
+      hasCheckedPrivateIndicators.current = true;
+    }
+  }, [matchedBuddies, checkPrivateIndicators]);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -140,12 +169,35 @@ export default function ChatLayout() {
     if (isMobile) {
       setMobileOpen(false);
     }
+    // Don't refresh on every section change to prevent infinite loops
   };
 
   const handleLogoClick = () => {
     setActiveSection("overview");
     setSelectedCourse(null);
     setSelectedBuddy(null);
+  };
+
+  const handleCourseSelect = async (courseId: number) => {
+    setSelectedCourse(courseId);
+    setChatMode("course");
+    setActiveSection("chat");
+
+    // Mark this course as viewed to clear the indicator
+    await markCourseAsViewed(courseId);
+  };
+
+  const handleBuddySelect = async (buddy: {
+    id: number;
+    username: string;
+    displayName: string;
+  }) => {
+    setSelectedBuddy(buddy);
+    setChatMode("private");
+    setActiveSection("chat");
+
+    // Mark this conversation as viewed to clear the indicator
+    await markPrivateConversationAsViewed(buddy.id);
   };
 
   const isActiveSection = (section: ActiveSection) => activeSection === section;
@@ -278,11 +330,7 @@ export default function ChatLayout() {
           enrolledCourses.map((course) => (
             <ListItem key={course.id} disablePadding>
               <ListItemButton
-                onClick={() => {
-                  setSelectedCourse(course.id);
-                  setChatMode("course");
-                  setActiveSection("chat");
-                }}
+                onClick={() => handleCourseSelect(course.id)}
                 sx={{
                   ...sidebarItemStyle,
                   "&.Mui-selected": {
@@ -312,18 +360,17 @@ export default function ChatLayout() {
                     fontWeight: selectedCourse === course.id ? 600 : 400,
                   }}
                 />
-                <Chip
-                  label={course.userCount || 0}
-                  size="small"
-                  sx={{
-                    fontSize: "0.7rem",
-                    height: 20,
-                    backgroundColor:
-                      mode === "dark"
-                        ? "rgba(255,255,255,0.1)"
-                        : "rgba(0,0,0,0.1)",
-                  }}
-                />
+                {getCourseIndicator(course.id) && (
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: "#ff5722",
+                      flexShrink: 0,
+                    }}
+                  />
+                )}
               </ListItemButton>
             </ListItem>
           ))
@@ -340,11 +387,7 @@ export default function ChatLayout() {
                 disablePadding
               >
                 <ListItemButton
-                  onClick={() => {
-                    setSelectedBuddy(studyBuddy.buddy!);
-                    setChatMode("private");
-                    setActiveSection("chat");
-                  }}
+                  onClick={() => handleBuddySelect(studyBuddy.buddy!)}
                   sx={{
                     ...sidebarItemStyle,
                     "&.Mui-selected": {
@@ -389,6 +432,18 @@ export default function ChatLayout() {
                       color: "text.secondary",
                     }}
                   />
+                  {studyBuddy.buddy &&
+                    getPrivateIndicator(studyBuddy.buddy.id) && (
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: "#ff5722",
+                          flexShrink: 0,
+                        }}
+                      />
+                    )}
                 </ListItemButton>
               </ListItem>
             ))}
@@ -474,20 +529,14 @@ export default function ChatLayout() {
         if (chatMode === "course" && selectedCourse) {
           return (
             <ModernChat
-              wsBase={`${import.meta.env.VITE_API_URL?.replace(
-                "http",
-                "ws"
-              )}/ws/chat`}
+              wsBase={import.meta.env.VITE_WS_URL}
               selectedCourse={selectedCourse}
             />
           );
         } else if (chatMode === "private" && selectedBuddy) {
           return (
             <ModernChat
-              wsBase={`${import.meta.env.VITE_API_URL?.replace(
-                "http",
-                "ws"
-              )}/ws/private`}
+              wsBase={import.meta.env.VITE_WS_URL}
               buddy={selectedBuddy}
             />
           );
