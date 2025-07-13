@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import {
   Box,
   Paper,
@@ -70,31 +70,29 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
 
   const currentUserId = parseInt(getCurrentUserId() || "0");
 
-  // Auto-scroll to bottom when new messages arrive
+  // Auto-scroll to bottom when new messages arrive - optimized
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" }); // Changed to "auto" for better performance
+  }, [messages.length]); // Only scroll when message count changes, not on content changes
 
-  // Mark messages as read when they come into view (debounced)
+  // Mark messages as read when they come into view (optimized)
+  const unreadMessageIds = useMemo(() => {
+    return messages
+      .filter(msg => !msg.isRead && msg.recipientId === currentUserId)
+      .slice(-3) // Only last 3 unread messages
+      .map(msg => msg.id);
+  }, [messages.length, currentUserId]); // Only recalculate when message count changes
+
   useEffect(() => {
-    const unreadMessages = messages.filter(
-      (msg) => !msg.isRead && msg.recipientId === currentUserId
-    );
-
-    // Only proceed if there are actually unread messages
-    if (unreadMessages.length === 0) {
-      return;
-    }
+    if (unreadMessageIds.length === 0) return;
 
     // Debounce the marking to avoid excessive API calls
     const timeoutId = setTimeout(() => {
-      // Limit to 3 most recent unread messages to avoid API spam
-      const messagesToMark = unreadMessages.slice(-3);
-      messagesToMark.forEach((msg) => markAsRead(msg.id));
-    }, 1000); // 1 second delay
+      unreadMessageIds.forEach((msgId) => markAsRead(msgId));
+    }, 2000); // Increased delay to 2 seconds
 
     return () => clearTimeout(timeoutId);
-  }, [messages, currentUserId, markAsRead]);
+  }, [unreadMessageIds.length, markAsRead]); // Only trigger when unread count changes
 
   const handleSendMessage = async () => {
     if (inputMessage.trim()) {
@@ -108,12 +106,17 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Optimize input handling with useCallback
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInputMessage(e.target.value);
+  }, []);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [inputMessage]); // Add inputMessage as dependency since handleSendMessage uses it
 
   const handleMessageMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
@@ -308,12 +311,21 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
             fullWidth
             placeholder="Type a message..."
             value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
+            onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             multiline
-            maxRows={4}
+            maxRows={3} // Reduced from 4 for better performance
             variant="outlined"
             size="small"
+            InputProps={{
+              autoComplete: "off", // Disable autocomplete for better performance
+            }}
+            sx={{
+              // Optimize for performance
+              '& .MuiInputBase-input': {
+                resize: 'none', // Prevent manual resizing
+              }
+            }}
           />
           <IconButton
             color="primary"

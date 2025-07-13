@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import {
   Box,
   Typography,
@@ -146,12 +146,19 @@ export default function ModernChat({
     }
   };
 
-  const currentUserId = getCurrentUserId();
+  // Memoize expensive operations
+  const currentUserId = useMemo(() => getCurrentUserId(), []); // Memoize user ID calculation
 
   const { enrolledCourses, isLoading: coursesLoading } = useCourses();
 
   // Memoize the courses to prevent unnecessary re-renders
   const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
+
+  // Memoize current course lookup
+  const currentCourse = useMemo(() => 
+    enrolledCourses.find(course => course.id === selectedCourse),
+    [enrolledCourses, selectedCourse]
+  );
 
   // Sync with prop changes
   useEffect(() => {
@@ -192,30 +199,22 @@ export default function ModernChat({
   // Track previous message count to detect new messages
   const previousMessageCountRef = useRef(0);
 
-  // Effect to detect new course messages and update indicators
+  // Effect to detect new course messages and update indicators - Optimized
   useEffect(() => {
     if (!buddy && selectedCourse && courseMessages.length > 0) {
       const currentMessageCount = courseMessages.length;
       const previousCount = previousMessageCountRef.current;
 
-      console.log(
-        `Course ${selectedCourse} - Messages: ${currentMessageCount}, Previous: ${previousCount}`
-      );
-
       // If we have more messages than before, a new message was received
       if (currentMessageCount > previousCount && previousCount > 0) {
         const newMessage = courseMessages[courseMessages.length - 1];
-        console.log(
-          `New message detected in course ${selectedCourse} from user ${newMessage.senderId}`
-        );
-
         // Call the indicator update function
         handleCourseMessageUpdate(selectedCourse, newMessage.senderId);
       }
 
       previousMessageCountRef.current = currentMessageCount;
     }
-  }, [courseMessages, buddy, selectedCourse, handleCourseMessageUpdate]);
+  }, [courseMessages.length, buddy, selectedCourse, handleCourseMessageUpdate]);
 
   // Use the appropriate data based on whether we're in buddy chat or course chat
   const messages = buddy ? privateMessages : courseMessages;
@@ -290,53 +289,52 @@ export default function ModernChat({
   }, [selectedCourse, courses]);
 
   const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" }); // Changed from "smooth" to "auto" for better performance
   };
 
+  // Optimized: Only scroll when new message is actually added, not on every render
   useEffect(() => {
     scrollToBottom();
-  }, [messages]);
+  }, [messages.length]); // Changed dependency to messages.length instead of messages array
 
-  // Mark messages as read when they're displayed (with performance optimizations)
+  // Mark messages as read when they're displayed (optimized with useMemo)
+  const unreadMessageIds = useMemo(() => {
+    if (messages.length === 0 || !currentUserId) return [];
+    
+    if (buddy) {
+      return messages
+        .filter(msg => 
+          msg.senderId !== currentUserId.toString() &&
+          "isRead" in msg &&
+          !msg.isRead
+        )
+        .slice(-3) // Only last 3 unread messages
+        .map(msg => msg.id);
+    } else {
+      return messages
+        .filter(msg => msg.senderId !== currentUserId.toString())
+        .slice(-5) // Only last 5 unread messages  
+        .map(msg => msg.id);
+    }
+  }, [messages.length, currentUserId, buddy]); // Only recalculate when message count changes
+
   useEffect(() => {
-    if (messages.length === 0 || !currentUserId) return;
+    if (unreadMessageIds.length === 0) return;
 
     const markMessagesAsReadDebounced = async () => {
       if (buddy && markPrivateMessageAsRead) {
-        // For private messages: only mark unread messages from the buddy
-        const unreadMessages = messages.filter(
-          (msg) =>
-            msg.senderId !== currentUserId.toString() &&
-            "isRead" in msg &&
-            !msg.isRead // Type guard to check if it's a PrivateMessage
-        );
-
-        // Only proceed if there are actually unread messages
-        if (unreadMessages.length === 0) return;
-
-        // Mark private messages as read one by one (existing API doesn't support batch)
-        // But limit to 3 most recent to avoid spam
-        const messagesToMark = unreadMessages.slice(-3);
-        for (const msg of messagesToMark) {
+        // Mark private messages as read
+        for (const msgId of unreadMessageIds) {
           try {
-            await markPrivateMessageAsRead(msg.id);
+            await markPrivateMessageAsRead(msgId);
           } catch (error) {
             console.error("Failed to mark private message as read:", error);
           }
         }
       } else if (markCourseMessageAsRead && selectedCourse) {
-        // For course messages: use the throttled batch function
-        const unreadMessages = messages.filter(
-          (msg) => msg.senderId !== currentUserId.toString()
-        );
-
-        // Only proceed if there are actually unread messages
-        if (unreadMessages.length === 0) return;
-
-        // Use the throttled function which will batch the requests automatically
-        const messagesToMark = unreadMessages.slice(-5); // Only mark 5 most recent
-        messagesToMark.forEach((msg) => {
-          markCourseMessageAsRead(msg.id).catch((error) => {
+        // Mark course messages as read
+        unreadMessageIds.forEach((msgId) => {
+          markCourseMessageAsRead(msgId).catch((error) => {
             console.error("Failed to mark course message as read:", error);
           });
         });
@@ -344,12 +342,11 @@ export default function ModernChat({
     };
 
     // Debounce the marking to avoid excessive calls
-    const timeoutId = setTimeout(markMessagesAsReadDebounced, 2000); // Increased to 2 seconds
+    const timeoutId = setTimeout(markMessagesAsReadDebounced, 3000); // Increased to 3 seconds
 
     return () => clearTimeout(timeoutId);
   }, [
-    messages,
-    currentUserId,
+    unreadMessageIds.length, // Only trigger when the count of unread messages changes
     buddy,
     markPrivateMessageAsRead,
     markCourseMessageAsRead,
@@ -378,12 +375,17 @@ export default function ModernChat({
     }
   };
 
-  const handleKeyPress = (e: React.KeyboardEvent) => {
+  // Optimize input handling with useCallback
+  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    setInput(e.target.value);
+  }, []);
+
+  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) {
       e.preventDefault();
       handleSendMessage();
     }
-  };
+  }, [input]); // Add input as dependency since handleSendMessage uses it
 
   const handleEditMessage = (messageId: number, currentContent: string) => {
     setEditingMessage({ id: messageId, content: currentContent });
@@ -413,10 +415,6 @@ export default function ModernChat({
       }
     }
   };
-
-  const currentCourse = enrolledCourses.find(
-    (course) => course.id === selectedCourse
-  );
 
   // Show loading state while courses are being fetched or preferences are loading
   if (coursesLoading || !preferencesLoaded) {
@@ -694,13 +692,20 @@ export default function ModernChat({
               variant="standard"
               placeholder={`Message ${currentCourse?.name || "course"}`}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={handleInputChange}
               onKeyPress={handleKeyPress}
               multiline
-              maxRows={4}
+              maxRows={3} // Reduced from 4 for better performance
               InputProps={{
                 disableUnderline: true,
                 sx: { px: 1 },
+                autoComplete: "off", // Disable autocomplete for better performance
+              }}
+              sx={{
+                // Optimize for performance
+                '& .MuiInputBase-input': {
+                  resize: 'none', // Prevent manual resizing
+                }
               }}
             />
             <IconButton size="small">
