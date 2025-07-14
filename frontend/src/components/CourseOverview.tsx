@@ -100,74 +100,14 @@ export default function CourseOverview({
 
   return (
     <OverviewContainer>
-      {/* Welcome Section */}
-      <WelcomeSection>
-        <Typography variant="h4" fontWeight="bold" gutterBottom>
-          Welcome back! 👋
-        </Typography>
-        <Typography variant="body1" color="text.secondary" sx={{ mb: 3 }}>
-          Here's your course overview. Click on any course to join the
-          conversation or manage your enrollments.
-        </Typography>
-
-        {/* Quick Stats */}
-        <Box
-          sx={{
-            display: "grid",
-            gridTemplateColumns: { xs: "repeat(2, 1fr)", sm: "repeat(4, 1fr)" },
-            gap: 2,
-            mb: 2,
-          }}
-        >
-          <StatsCard>
-            <TrendingUpIcon color="primary" sx={{ mb: 1 }} />
-            <Typography variant="h6" fontWeight="bold">
-              {enrolledCourses.length}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Enrolled Courses
-            </Typography>
-          </StatsCard>
-          <StatsCard>
-            <ChatIcon color="primary" sx={{ mb: 1 }} />
-            <Typography variant="h6" fontWeight="bold">
-              ∞
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Active Chats
-            </Typography>
-          </StatsCard>
-          <StatsCard>
-            <PeopleIcon color="primary" sx={{ mb: 1 }} />
-            <Typography variant="h6" fontWeight="bold">
-              {enrolledCourses.reduce(
-                (total, course) => total + (course.userCount || 0),
-                0
-              )}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Total Classmates
-            </Typography>
-          </StatsCard>
-          <StatsCard>
-            <NotificationsIcon color="primary" sx={{ mb: 1 }} />
-            <Typography variant="h6" fontWeight="bold">
-              2
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              Study Buddies
-            </Typography>
-          </StatsCard>
-        </Box>
-      </WelcomeSection>
-
       {/* Courses Section */}
       <Box
         sx={{
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
-          mb: 3,
+          mb: 4,
+          mt: 2,
         }}
       >
         <Typography variant="h5" fontWeight="bold">
@@ -183,14 +123,14 @@ export default function CourseOverview({
       </Box>
 
       {enrolledCourses.length === 0 ? (
-        <Box sx={{ textAlign: "center", py: 8 }}>
+        <Box sx={{ textAlign: "center", py: 10, px: 4 }}>
           <AssignmentIcon
-            sx={{ fontSize: 64, color: "text.secondary", mb: 2 }}
+            sx={{ fontSize: 64, color: "text.secondary", mb: 3 }}
           />
           <Typography variant="h6" color="text.secondary" gutterBottom>
             No courses enrolled yet
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 4, maxWidth: 400, mx: "auto" }}>
             Get started by enrolling in your first course to connect with
             classmates.
           </Typography>
@@ -204,10 +144,11 @@ export default function CourseOverview({
             display: "grid",
             gridTemplateColumns: {
               xs: "1fr",
-              sm: "repeat(2, 1fr)",
-              md: "repeat(3, 1fr)",
+              sm: "repeat(auto-fit, minmax(320px, 1fr))",
+              lg: "repeat(auto-fit, minmax(350px, 1fr))",
             },
-            gap: 3,
+            gap: 4,
+            mt: 2,
           }}
         >
           {enrolledCourses.map((course) => (
@@ -215,20 +156,20 @@ export default function CourseOverview({
               key={course.id}
               onClick={() => handleCourseClick(course.id)}
             >
-              <CardContent sx={{ flexGrow: 1 }}>
-                <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+              <CardContent sx={{ flexGrow: 1, p: 3 }}>
+                <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
                   <Avatar
                     sx={{
                       backgroundColor: theme.palette.primary.main,
                       mr: 2,
-                      width: 48,
-                      height: 48,
+                      width: 56,
+                      height: 56,
                     }}
                   >
                     {course.name.charAt(0).toUpperCase()}
                   </Avatar>
                   <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                    <Typography variant="h6" fontWeight="bold" noWrap>
+                    <Typography variant="h6" fontWeight="bold" noWrap sx={{ mb: 1 }}>
                       {course.name}
                     </Typography>
                     <Chip
@@ -243,13 +184,13 @@ export default function CourseOverview({
                 <Typography
                   variant="body2"
                   color="text.secondary"
-                  sx={{ mb: 2 }}
+                  sx={{ mb: 3, lineHeight: 1.6 }}
                 >
                   Join the conversation with your classmates, share resources,
                   and collaborate on assignments.
                 </Typography>
 
-                <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap" }}>
                   <Chip
                     icon={<ChatIcon />}
                     label="Active Chat"
@@ -266,14 +207,15 @@ export default function CourseOverview({
                 </Box>
               </CardContent>
 
-              <CardActions sx={{ p: 2, pt: 0 }}>
+              <CardActions sx={{ p: 3, pt: 1 }}>
                 <Button
                   fullWidth
                   variant="contained"
                   startIcon={<ChatIcon />}
                   onClick={() => handleCourseClick(course.id)}
+                  sx={{ py: 1.5 }}
                 >
-                  Join Chat
+                  Go To Chat
                 </Button>
               </CardActions>
             </CourseCard>
