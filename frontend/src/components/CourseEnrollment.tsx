@@ -19,6 +19,7 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Tooltip,
 } from "@mui/material";
 import { Check, Add, Remove, School, Search, Sort } from "@mui/icons-material";
 import { useCourses } from "../hooks/useCourses";
@@ -225,23 +226,47 @@ export default function CourseEnrollment() {
               You are not enrolled in any courses yet.
             </Typography>
           ) : (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
-              {displayEnrolledCourses.map((course) => (
-                <Chip
-                  key={course.id}
-                  label={`${course.name}${
-                    course.userCount !== undefined
-                      ? ` (${course.userCount} ${
-                          course.userCount === 1 ? "user" : "users"
-                        })`
-                      : ""
-                  }`}
-                  color="primary"
-                  icon={<Check />}
-                  sx={{ fontSize: "0.9rem" }}
-                />
-              ))}
-            </Box>
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Click on a course chip to unenroll
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
+                {displayEnrolledCourses.map((course) => (
+                  <Tooltip 
+                    key={course.id}
+                    title={actionLoading === course.id ? "Unenrolling..." : "Click to unenroll from this course"}
+                    arrow
+                  >
+                    <Chip
+                      label={`${course.name}${
+                        course.userCount !== undefined
+                          ? ` (${course.userCount} ${
+                              course.userCount === 1 ? "user" : "users"
+                            })`
+                          : ""
+                      }`}
+                      color="primary"
+                      icon={
+                        actionLoading === course.id ? (
+                          <CircularProgress size={16} />
+                        ) : (
+                          <Check />
+                        )
+                      }
+                      onClick={() => handleEnrollment(course.id, false)}
+                      sx={{ 
+                        fontSize: "0.9rem",
+                        cursor: actionLoading === course.id ? "default" : "pointer",
+                        "&:hover": {
+                          backgroundColor: actionLoading === course.id ? undefined : "primary.dark",
+                        },
+                      }}
+                      disabled={actionLoading === course.id}
+                    />
+                  </Tooltip>
+                ))}
+              </Box>
+            </>
           )}
         </CardContent>
       </Card>
