@@ -14,8 +14,6 @@ import {
   Chat as ChatIcon,
   People as PeopleIcon,
   Assignment as AssignmentIcon,
-  Notifications as NotificationsIcon,
-  TrendingUp as TrendingUpIcon,
 } from "@mui/icons-material";
 import { useCourses } from "../hooks/useCourses";
 
@@ -26,16 +24,6 @@ const OverviewContainer = styled(Box)(({ theme }) => ({
   backgroundColor: theme.palette.background.default,
 }));
 
-const WelcomeSection = styled(Box)(({ theme }) => ({
-  marginBottom: theme.spacing(4),
-  padding: theme.spacing(3),
-  borderRadius: theme.spacing(2),
-  background:
-    theme.palette.mode === "dark"
-      ? "linear-gradient(135deg, rgba(153, 102, 204, 0.1) 0%, rgba(102, 51, 153, 0.05) 100%)"
-      : "linear-gradient(135deg, rgba(102, 51, 153, 0.1) 0%, rgba(153, 102, 204, 0.05) 100%)",
-  border: `1px solid ${theme.palette.divider}`,
-}));
 
 const CourseCard = styled(Card)(({ theme }) => ({
   height: "100%",
@@ -53,15 +41,6 @@ const CourseCard = styled(Card)(({ theme }) => ({
   border: `1px solid ${theme.palette.divider}`,
 }));
 
-const StatsCard = styled(Card)(({ theme }) => ({
-  padding: theme.spacing(2),
-  textAlign: "center",
-  background:
-    theme.palette.mode === "dark"
-      ? "rgba(255, 255, 255, 0.02)"
-      : "rgba(102, 51, 153, 0.03)",
-  border: `1px solid ${theme.palette.divider}`,
-}));
 
 interface CourseOverviewProps {
   onCourseSelect: (courseId: number) => void;
