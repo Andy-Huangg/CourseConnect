@@ -361,15 +361,17 @@ export default function ChatLayout() {
                   }}
                 />
                 {getCourseIndicator(course.id) && (
-                  <Box
-                    sx={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: "50%",
-                      backgroundColor: "#ff5722",
-                      flexShrink: 0,
-                    }}
-                  />
+                  <Tooltip title="New unread messages" arrow>
+                    <Box
+                      sx={{
+                        width: 8,
+                        height: 8,
+                        borderRadius: "50%",
+                        backgroundColor: "#ff5722",
+                        flexShrink: 0,
+                      }}
+                    />
+                  </Tooltip>
                 )}
               </ListItemButton>
             </ListItem>
@@ -434,15 +436,17 @@ export default function ChatLayout() {
                   />
                   {studyBuddy.buddy &&
                     getPrivateIndicator(studyBuddy.buddy.id) && (
-                      <Box
-                        sx={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: "50%",
-                          backgroundColor: "#ff5722",
-                          flexShrink: 0,
-                        }}
-                      />
+                      <Tooltip title="New unread private messages" arrow>
+                        <Box
+                          sx={{
+                            width: 8,
+                            height: 8,
+                            borderRadius: "50%",
+                            backgroundColor: "#ff5722",
+                            flexShrink: 0,
+                          }}
+                        />
+                      </Tooltip>
                     )}
                 </ListItemButton>
               </ListItem>
