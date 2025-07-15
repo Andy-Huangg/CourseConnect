@@ -14,8 +14,13 @@ import {
   DialogTitle,
   DialogContent,
   DialogActions,
+  InputAdornment,
+  FormControl,
+  InputLabel,
+  Select,
+  MenuItem,
 } from "@mui/material";
-import { Check, Add, Remove, School } from "@mui/icons-material";
+import { Check, Add, Remove, School, Search, Sort } from "@mui/icons-material";
 import { useCourses } from "../hooks/useCourses";
 
 interface Course {
@@ -39,6 +44,8 @@ export default function CourseEnrollment() {
   const [newCourseName, setNewCourseName] = useState("");
   const [createLoading, setCreateLoading] = useState(false);
   const [localError, setLocalError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<"name" | "userCount">("userCount");
 
   const apiUrl = import.meta.env.VITE_API_URL;
   const token = localStorage.getItem("jwt");
@@ -58,6 +65,21 @@ export default function CourseEnrollment() {
   const displayEnrolledCourses = useMemo(() => {
     return enrolledCourses.filter((course) => course.id !== 1);
   }, [enrolledCourses]);
+
+  // Filter and sort all courses based on search and sort criteria
+  const filteredAndSortedCourses = useMemo(() => {
+    let filtered = allCourses.filter((course) =>
+      course.name.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+
+    if (sortBy === "name") {
+      filtered.sort((a, b) => a.name.localeCompare(b.name));
+    } else if (sortBy === "userCount") {
+      filtered.sort((a, b) => (b.userCount || 0) - (a.userCount || 0));
+    }
+
+    return filtered;
+  }, [allCourses, searchQuery, sortBy]);
 
   const handleEnrollment = async (courseId: number, enroll: boolean) => {
     try {
@@ -118,6 +140,26 @@ export default function CourseEnrollment() {
 
         // Add to context
         addNewCourse(newCourse);
+
+        // Auto-enroll the user in the newly created course
+        try {
+          const enrollResponse = await fetch(`${apiUrl}/api/Course/${newCourse.id}/enroll`, {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          });
+
+          if (enrollResponse.ok) {
+            // Update enrollment status in context
+            updateEnrollment(newCourse.id, true);
+          } else {
+            console.warn("Failed to auto-enroll in newly created course");
+          }
+        } catch (enrollError) {
+          console.warn("Error auto-enrolling in newly created course:", enrollError);
+        }
 
         // Close dialog and reset form
         setCreateDialogOpen(false);
@@ -207,9 +249,52 @@ export default function CourseEnrollment() {
       <Divider sx={{ mb: 3 }} />
 
       {/* All Courses Section */}
-      <Typography variant="h6" sx={{ mb: 2 }}>
-        All Available Courses
-      </Typography>
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
+        <Typography variant="h6">
+          All Available Courses
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          {filteredAndSortedCourses.length} of {allCourses.length} courses
+        </Typography>
+      </Box>
+
+      {/* Search and Sort Controls */}
+      <Box
+        sx={{
+          display: "flex",
+          gap: 2,
+          mb: 3,
+          flexDirection: { xs: "column", sm: "row" },
+          alignItems: { xs: "stretch", sm: "center" },
+        }}
+      >
+        <TextField
+          placeholder="Search courses..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ flexGrow: 1, minWidth: 250 }}
+          size="small"
+        />
+        <FormControl size="small" sx={{ minWidth: 180 }}>
+          <InputLabel>Sort by</InputLabel>
+          <Select
+            value={sortBy}
+            label="Sort by"
+            onChange={(e) => setSortBy(e.target.value as "name" | "userCount")}
+            startAdornment={<Sort sx={{ mr: 1, ml: 1 }} />}
+          >
+            <MenuItem value="userCount">User Count (High to Low)</MenuItem>
+            <MenuItem value="name">Course Name (A-Z)</MenuItem>
+          </Select>
+        </FormControl>
+      </Box>
 
       {/* Help Message */}
       <Alert
@@ -240,7 +325,7 @@ export default function CourseEnrollment() {
           gap: 2,
         }}
       >
-        {allCourses.map((course) => {
+        {filteredAndSortedCourses.map((course) => {
           const isEnrolled = enrollmentStatus[course.id];
           const isLoading = actionLoading === course.id;
 
@@ -309,6 +394,12 @@ export default function CourseEnrollment() {
           );
         })}
       </Box>
+
+      {filteredAndSortedCourses.length === 0 && allCourses.length > 0 && (
+        <Typography color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
+          No courses found matching "{searchQuery}". Try adjusting your search terms.
+        </Typography>
+      )}
 
       {allCourses.length === 0 && (
         <Typography color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
