@@ -103,6 +103,7 @@ export const login = createAsyncThunk(
       localStorage.setItem("jwt", data.token);
       return { token: data.token, user: credentials.username };
     } catch (error) {
+      console.error("Login error:", error);
       return rejectWithValue("An error occurred during login");
     }
   }
@@ -147,7 +148,51 @@ export const signup = createAsyncThunk(
       localStorage.setItem("jwt", data.token);
       return { token: data.token, user: credentials.username };
     } catch (error) {
+      console.error("Signup error:", error);
       return rejectWithValue("An error occurred during signup");
+    }
+  }
+);
+
+export const updateDisplayName = createAsyncThunk(
+  "auth/updateDisplayName",
+  async (displayName: string, { rejectWithValue }) => {
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) {
+        return rejectWithValue("No authentication token found");
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/User/profile/display-name`,
+        {
+          method: "PUT",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ displayName }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        return rejectWithValue(data.message || "Failed to update display name");
+      }
+
+      // Update token in localStorage if a new one is provided
+      if (data.token) {
+        localStorage.setItem("jwt", data.token);
+      }
+
+      return {
+        displayName: data.displayName,
+        token: data.token || token,
+      };
+    } catch (error) {
+      console.error("Display name update error:", error);
+      return rejectWithValue("An error occurred while updating display name");
     }
   }
 );
