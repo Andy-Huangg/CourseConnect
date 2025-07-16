@@ -36,6 +36,7 @@ import CourseOverview from "../CourseOverview";
 import { useCourses } from "../../hooks/useCourses";
 import { useStudyBuddies } from "../../hooks/useStudyBuddies";
 import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
+import Settings from "../Settings";
 
 const drawerWidth = 280;
 
@@ -119,10 +120,24 @@ export default function ChatLayout() {
     username: string;
     displayName: string;
   } | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const isMobile = useMediaQuery(muiTheme.breakpoints.down("md"));
   const { user } = useAppSelector((state) => state.auth);
   const { enrolledCourses } = useCourses();
   const { matchedBuddies } = useStudyBuddies();
+
+  // Helper function to get display name from token
+  const getDisplayName = () => {
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) return user;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.displayName || payload.sub || user;
+    } catch {
+      return user;
+    }
+  };
   const {
     checkCourseIndicators,
     checkPrivateIndicators,
@@ -466,11 +481,11 @@ export default function ChatLayout() {
             fontSize: "0.875rem",
           }}
         >
-          {user?.charAt(0).toUpperCase()}
+          {getDisplayName()?.charAt(0).toUpperCase()}
         </Avatar>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="body2" fontWeight={600} noWrap>
-            {user}
+            {getDisplayName()}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Online
@@ -480,6 +495,7 @@ export default function ChatLayout() {
           <Tooltip title="Settings">
             <IconButton
               size="small"
+              onClick={() => setSettingsOpen(true)}
               sx={{
                 color: "text.secondary",
                 "&:hover": { color: "primary.main" },
@@ -645,6 +661,9 @@ export default function ChatLayout() {
         {isMobile && <Toolbar />}
         <ContentArea>{renderContent()}</ContentArea>
       </MainContent>
+
+      {/* Settings Dialog */}
+      <Settings open={settingsOpen} onClose={() => setSettingsOpen(false)} />
     </Box>
   );
 }
