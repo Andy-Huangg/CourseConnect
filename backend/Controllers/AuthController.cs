@@ -61,9 +61,19 @@ namespace backend.Controllers
                 Console.WriteLine($"Warning: Failed to auto-enroll user {newUser.Id} in Global course: {ex.Message}");
             }
 
-            var token = GenerateJwtToken(newUser.Id, newUser.Username);
+            var token = GenerateJwtToken(newUser.Id, newUser.Username, newUser.DisplayName);
 
-            return Ok(new { message = "User registered successfully.", token });
+            return Ok(new
+            {
+                message = "User registered successfully.",
+                token,
+                user = new
+                {
+                    id = newUser.Id,
+                    username = newUser.Username,
+                    displayName = newUser.DisplayName
+                }
+            });
         }
 
         [HttpPost("login")]
@@ -100,11 +110,20 @@ namespace backend.Controllers
             }
 
             // Generate JWT token
-            var token = GenerateJwtToken(user.Id, user.Username);
-            return Ok(new { token });
+            var token = GenerateJwtToken(user.Id, user.Username, user.DisplayName);
+            return Ok(new
+            {
+                token,
+                user = new
+                {
+                    id = user.Id,
+                    username = user.Username,
+                    displayName = user.DisplayName
+                }
+            });
         }
 
-        private string GenerateJwtToken(int userId, string username)
+        private string GenerateJwtToken(int userId, string username, string displayName)
         {
             var jwtKey = _configuration["Jwt:Key"];
             var jwtIssuer = _configuration["Jwt:Issuer"];
@@ -119,12 +138,14 @@ namespace backend.Controllers
             // - Sub: Username (standard JWT subject claim for interoperability)  
             // - userId: User ID (custom claim for our application's user identification)
             // - Name: Username (for display purposes)
+            // - displayName: Display name (for UI display)
             var claims = new[]
             {
                 new Claim(JwtRegisteredClaimNames.Sub, username), // Username in sub claim
                 new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString()),
                 new Claim("userId", userId.ToString()), // Custom userId claim for our app
-                new Claim(ClaimTypes.Name, username) // Username for display purposes
+                new Claim(ClaimTypes.Name, username), // Username for display purposes
+                new Claim("displayName", displayName) // Display name for UI
             };
 
             var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
