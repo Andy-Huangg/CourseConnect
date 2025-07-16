@@ -7,5 +7,6 @@ namespace backend.Repositories
         Task<User?> GetByUsernameAsync(string username);
         Task<User?> GetByIdAsync(int id);
         Task<bool> UsernameExistsAsync(string username);
+        Task<User?> UpdateDisplayNameAsync(int userId, string displayName);
     }
 }

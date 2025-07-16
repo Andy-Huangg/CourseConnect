@@ -26,5 +26,18 @@ namespace backend.Repositories
         {
             return await _context.User.AnyAsync(u => u.Username == username);
         }
+
+        public async Task<User?> UpdateDisplayNameAsync(int userId, string displayName)
+        {
+            var user = await _context.User.FirstOrDefaultAsync(u => u.Id == userId);
+            if (user == null)
+            {
+                return null;
+            }
+
+            user.DisplayName = displayName;
+            await _context.SaveChangesAsync();
+            return user;
+        }
     }
 }
