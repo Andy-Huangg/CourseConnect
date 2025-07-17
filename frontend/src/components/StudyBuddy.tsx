@@ -95,7 +95,7 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
       } else {
         throw new Error("Failed to fetch study buddies");
       }
-    } catch (error) {
+    } catch {
       setError("Failed to load study buddy information");
     } finally {
       setIsLoading(false);
@@ -257,7 +257,7 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
       } else {
         throw new Error("Failed to opt out");
       }
-    } catch (error) {
+    } catch {
       setError("Failed to opt out");
     } finally {
       setActionLoading(null);
@@ -288,7 +288,7 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
       } else {
         throw new Error("Failed to remove study buddy connection");
       }
-    } catch (error) {
+    } catch {
       setError("Failed to remove study buddy connection");
     } finally {
       setActionLoading(null);

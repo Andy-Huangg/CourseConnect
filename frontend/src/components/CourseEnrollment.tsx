@@ -69,7 +69,7 @@ export default function CourseEnrollment() {
 
   // Filter and sort all courses based on search and sort criteria
   const filteredAndSortedCourses = useMemo(() => {
-    let filtered = allCourses.filter((course) =>
+    const filtered = allCourses.filter((course) =>
       course.name.toLowerCase().includes(searchQuery.toLowerCase())
     );
 
@@ -143,20 +143,25 @@ export default function CourseEnrollment() {
 
         // Auto-enroll the user in the newly created course
         try {
-          const enrollResponse = await fetch(`${apiUrl}/api/Course/${newCourse.id}/enroll`, {
-            method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          });
+          const enrollResponse = await fetch(
+            `${apiUrl}/api/Course/${newCourse.id}/enroll`,
+            {
+              method: "POST",
+              headers: {
+                Authorization: `Bearer ${token}`,
+                "Content-Type": "application/json",
+              },
+            }
+          );
 
           if (enrollResponse.ok) {
             // Update enrollment status in context
             updateEnrollment(newCourse.id, true);
           } else {
+            // Auto-enrollment failed, ignore
           }
-        } catch (enrollError) {
+        } catch {
+          // Auto-enrollment failed, ignore
         }
 
         // Close dialog and reset form
@@ -168,7 +173,7 @@ export default function CourseEnrollment() {
       } else {
         throw new Error("Failed to create course");
       }
-    } catch (error) {
+    } catch {
       setLocalError("Failed to create course. Please try again.");
     } finally {
       setCreateLoading(false);
@@ -228,9 +233,13 @@ export default function CourseEnrollment() {
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 1 }}>
                 {displayEnrolledCourses.map((course) => (
-                  <Tooltip 
+                  <Tooltip
                     key={course.id}
-                    title={actionLoading === course.id ? "Unenrolling..." : "Click to unenroll from this course"}
+                    title={
+                      actionLoading === course.id
+                        ? "Unenrolling..."
+                        : "Click to unenroll from this course"
+                    }
                     arrow
                   >
                     <Chip
@@ -250,11 +259,15 @@ export default function CourseEnrollment() {
                         )
                       }
                       onClick={() => handleEnrollment(course.id, false)}
-                      sx={{ 
+                      sx={{
                         fontSize: "0.9rem",
-                        cursor: actionLoading === course.id ? "default" : "pointer",
+                        cursor:
+                          actionLoading === course.id ? "default" : "pointer",
                         "&:hover": {
-                          backgroundColor: actionLoading === course.id ? undefined : "primary.dark",
+                          backgroundColor:
+                            actionLoading === course.id
+                              ? undefined
+                              : "primary.dark",
                         },
                       }}
                       disabled={actionLoading === course.id}
@@ -270,10 +283,15 @@ export default function CourseEnrollment() {
       <Divider sx={{ mb: 3 }} />
 
       {/* All Courses Section */}
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3 }}>
-        <Typography variant="h6">
-          All Available Courses
-        </Typography>
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          mb: 3,
+        }}
+      >
+        <Typography variant="h6">All Available Courses</Typography>
         <Typography variant="body2" color="text.secondary">
           {filteredAndSortedCourses.length} of {allCourses.length} courses
         </Typography>
@@ -418,7 +436,8 @@ export default function CourseEnrollment() {
 
       {filteredAndSortedCourses.length === 0 && allCourses.length > 0 && (
         <Typography color="text.secondary" sx={{ textAlign: "center", mt: 4 }}>
-          No courses found matching "{searchQuery}". Try adjusting your search terms.
+          No courses found matching "{searchQuery}". Try adjusting your search
+          terms.
         </Typography>
       )}
 

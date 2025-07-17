@@ -255,7 +255,7 @@ export function usePrivateMessages(recipientId?: number) {
         } else {
           // Don't spam the console with errors - the WebSocket will handle updates
         }
-      } catch (error) {
+      } catch {
         // Reduced logging to prevent console spam
       }
     },

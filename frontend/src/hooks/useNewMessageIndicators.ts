@@ -126,7 +126,8 @@ export function useNewMessageIndicators() {
           ...prev,
           courseIndicators: newCourseIndicators,
         }));
-      } catch (error) {
+      } catch {
+        // API request failed, ignore
       }
     },
     [getHeaders]
@@ -179,7 +180,8 @@ export function useNewMessageIndicators() {
             ...newPrivateIndicators,
           },
         }));
-      } catch (error) {
+      } catch {
+        // API request failed, ignore
       }
     },
     [getHeaders]
@@ -207,7 +209,8 @@ export function useNewMessageIndicators() {
             },
           }));
         }
-      } catch (error) {
+      } catch {
+        // API request failed, ignore
       }
     },
     [getHeaders]
@@ -244,7 +247,7 @@ export function useNewMessageIndicators() {
             },
           }));
         }
-      } catch (error) {
+      } catch {
         // Restore the indicator on error
         setIndicators((prev) => ({
           ...prev,

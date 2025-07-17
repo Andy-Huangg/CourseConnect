@@ -155,8 +155,8 @@ export default function ModernChat({
   const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
 
   // Memoize current course lookup
-  const currentCourse = useMemo(() => 
-    enrolledCourses.find(course => course.id === selectedCourse),
+  const currentCourse = useMemo(
+    () => enrolledCourses.find((course) => course.id === selectedCourse),
     [enrolledCourses, selectedCourse]
   );
 
@@ -214,14 +214,18 @@ export default function ModernChat({
 
       previousMessageCountRef.current = currentMessageCount;
     }
-  }, [courseMessages.length, buddy, selectedCourse, handleCourseMessageUpdate]);
+  }, [courseMessages, buddy, selectedCourse, handleCourseMessageUpdate]);
 
   // Use the appropriate data based on whether we're in buddy chat or course chat
   const messages = buddy ? privateMessages : courseMessages;
   const isLoading = buddy ? privateLoading : courseLoading;
-  const sendMessage = buddy
-    ? (content: string) => sendPrivateMessage(buddy.id, content)
-    : sendCourseMessage;
+  const sendMessage = useMemo(
+    () =>
+      buddy
+        ? (content: string) => sendPrivateMessage(buddy.id, content)
+        : sendCourseMessage,
+    [buddy, sendPrivateMessage, sendCourseMessage]
+  );
   const editMessage = buddy ? editPrivateMessage : editCourseMessage;
   const deleteMessage = buddy ? deletePrivateMessage : deleteCourseMessage;
 
@@ -245,7 +249,7 @@ export default function ModernChat({
       } else {
         setAnonymousName("");
       }
-    } catch (error) {
+    } catch {
       setAnonymousName("");
     }
   };
@@ -298,23 +302,24 @@ export default function ModernChat({
   // Mark messages as read when they're displayed (optimized with useMemo)
   const unreadMessageIds = useMemo(() => {
     if (messages.length === 0 || !currentUserId) return [];
-    
+
     if (buddy) {
       return messages
-        .filter(msg => 
-          msg.senderId !== currentUserId.toString() &&
-          "isRead" in msg &&
-          !msg.isRead
+        .filter(
+          (msg) =>
+            msg.senderId !== currentUserId.toString() &&
+            "isRead" in msg &&
+            !msg.isRead
         )
         .slice(-3) // Only last 3 unread messages
-        .map(msg => msg.id);
+        .map((msg) => msg.id);
     } else {
       return messages
-        .filter(msg => msg.senderId !== currentUserId.toString())
-        .slice(-5) // Only last 5 unread messages  
-        .map(msg => msg.id);
+        .filter((msg) => msg.senderId !== currentUserId.toString())
+        .slice(-5) // Only last 5 unread messages
+        .map((msg) => msg.id);
     }
-  }, [messages.length, currentUserId, buddy]); // Only recalculate when message count changes
+  }, [messages, currentUserId, buddy]); // Include messages since we filter the array
 
   useEffect(() => {
     if (unreadMessageIds.length === 0) return;
@@ -325,14 +330,14 @@ export default function ModernChat({
         for (const msgId of unreadMessageIds) {
           try {
             await markPrivateMessageAsRead(msgId);
-          } catch (error) {
+          } catch {
+            // Mark as read failed, ignore
           }
         }
       } else if (markCourseMessageAsRead && selectedCourse) {
         // Mark course messages as read
         unreadMessageIds.forEach((msgId) => {
-          markCourseMessageAsRead(msgId).catch((error) => {
-          });
+          markCourseMessageAsRead(msgId).catch(() => {});
         });
       }
     };
@@ -342,14 +347,14 @@ export default function ModernChat({
 
     return () => clearTimeout(timeoutId);
   }, [
-    unreadMessageIds.length, // Only trigger when the count of unread messages changes
+    unreadMessageIds, // Include unreadMessageIds since we iterate over it
     buddy,
     markPrivateMessageAsRead,
     markCourseMessageAsRead,
     selectedCourse,
   ]);
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (input.trim()) {
       if (buddy) {
         // For private messages, handle the async result
@@ -369,19 +374,25 @@ export default function ModernChat({
         setInput("");
       }
     }
-  };
+  }, [input, buddy, sendMessage]);
 
   // Optimize input handling with useCallback
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setInput(e.target.value);
-  }, []);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInput(e.target.value);
+    },
+    []
+  );
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  }, [input]); // Add input as dependency since handleSendMessage uses it
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  ); // Include handleSendMessage since we call it
 
   const handleEditMessage = (messageId: number, currentContent: string) => {
     setEditingMessage({ id: messageId, content: currentContent });
@@ -699,9 +710,9 @@ export default function ModernChat({
               }}
               sx={{
                 // Optimize for performance
-                '& .MuiInputBase-input': {
-                  resize: 'none', // Prevent manual resizing
-                }
+                "& .MuiInputBase-input": {
+                  resize: "none", // Prevent manual resizing
+                },
               }}
             />
             <IconButton size="small">

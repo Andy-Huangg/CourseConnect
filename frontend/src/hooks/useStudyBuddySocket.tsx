@@ -101,7 +101,7 @@ export function useStudyBuddySocket(
     try {
       isConnectingRef.current = true;
       socketRef.current = new WebSocket(wsUrl);
-    } catch (error) {
+    } catch {
       isConnectingRef.current = false;
       return;
     }
@@ -137,7 +137,7 @@ export function useStudyBuddySocket(
       }
     };
 
-    socketRef.current.onerror = (error) => {
+    socketRef.current.onerror = () => {
       isConnectingRef.current = false;
     };
   }, [onStudyBuddyUpdate]);

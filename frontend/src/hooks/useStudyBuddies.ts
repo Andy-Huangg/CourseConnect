@@ -46,7 +46,7 @@ export function useStudyBuddies() {
       } else {
         throw new Error("Failed to fetch courses");
       }
-    } catch (error) {
+    } catch {
       return [];
     }
   }, []);
@@ -82,7 +82,7 @@ export function useStudyBuddies() {
       } else {
         throw new Error("Failed to fetch study buddies");
       }
-    } catch (error) {
+    } catch {
       setError("Failed to load study buddy information");
     } finally {
       setIsLoading(false);

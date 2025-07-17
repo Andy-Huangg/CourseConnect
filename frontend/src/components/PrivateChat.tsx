@@ -78,10 +78,10 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
   // Mark messages as read when they come into view (optimized)
   const unreadMessageIds = useMemo(() => {
     return messages
-      .filter(msg => !msg.isRead && msg.recipientId === currentUserId)
+      .filter((msg) => !msg.isRead && msg.recipientId === currentUserId)
       .slice(-3) // Only last 3 unread messages
-      .map(msg => msg.id);
-  }, [messages.length, currentUserId]); // Only recalculate when message count changes
+      .map((msg) => msg.id);
+  }, [messages, currentUserId]); // Include messages since we filter the array
 
   useEffect(() => {
     if (unreadMessageIds.length === 0) return;
@@ -92,9 +92,9 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
     }, 2000); // Increased delay to 2 seconds
 
     return () => clearTimeout(timeoutId);
-  }, [unreadMessageIds.length, markAsRead]); // Only trigger when unread count changes
+  }, [unreadMessageIds, markAsRead]); // Include unreadMessageIds since we iterate over it
 
-  const handleSendMessage = async () => {
+  const handleSendMessage = useCallback(async () => {
     if (inputMessage.trim()) {
       const result = await sendMessage(buddy.id, inputMessage.trim());
       if (result.success) {
@@ -103,19 +103,25 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
         // Handle error (could show a toast notification)
       }
     }
-  };
+  }, [inputMessage, sendMessage, buddy.id]);
 
   // Optimize input handling with useCallback
-  const handleInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    setInputMessage(e.target.value);
-  }, []);
+  const handleInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      setInputMessage(e.target.value);
+    },
+    []
+  );
 
-  const handleKeyPress = useCallback((e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  }, [inputMessage]); // Add inputMessage as dependency since handleSendMessage uses it
+  const handleKeyPress = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        handleSendMessage();
+      }
+    },
+    [handleSendMessage]
+  ); // Include handleSendMessage since we call it
 
   const handleMessageMenuOpen = (
     event: React.MouseEvent<HTMLElement>,
@@ -148,6 +154,7 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
     ) {
       const result = await deleteMessage(selectedMessage.id);
       if (!result.success) {
+        // Delete failed, error already handled by the hook
       }
     }
     handleMessageMenuClose();
@@ -163,6 +170,7 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
         setIsEditDialogOpen(false);
         setEditingMessage(null);
       } else {
+        // Edit failed, error already handled by the hook
       }
     }
   };
@@ -319,9 +327,9 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
             }}
             sx={{
               // Optimize for performance
-              '& .MuiInputBase-input': {
-                resize: 'none', // Prevent manual resizing
-              }
+              "& .MuiInputBase-input": {
+                resize: "none", // Prevent manual resizing
+              },
             }}
           />
           <IconButton

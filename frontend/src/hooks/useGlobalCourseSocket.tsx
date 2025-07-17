@@ -106,7 +106,8 @@ export function useGlobalCourseSocket(
             }
           }
           // Ignore other message types (USER_COUNT, NEW_MESSAGE, etc.)
-        } catch (error) {
+        } catch {
+          // Ignore parsing errors
         }
       };
 
@@ -126,10 +127,10 @@ export function useGlobalCourseSocket(
         }
       };
 
-      newSocket.onerror = (error) => {
+      newSocket.onerror = () => {
         isConnectingRef.current = false;
       };
-    } catch (error) {
+    } catch {
       isConnectingRef.current = false;
     }
   }, [onCourseNotification]);
