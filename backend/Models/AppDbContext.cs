@@ -14,6 +14,7 @@ namespace backend.Models
         public DbSet<Course> Courses { get; set; }
         public DbSet<StudyBuddy> StudyBuddies { get; set; }
         public DbSet<PrivateMessage> PrivateMessages { get; set; }
+        public DbSet<UserPreference> UserPreferences { get; set; }
 
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
@@ -90,6 +91,18 @@ namespace backend.Models
             // Ensure one read record per user per message
             modelBuilder.Entity<ChatMessageRead>()
                 .HasIndex(cmr => new { cmr.MessageId, cmr.UserId })
+                .IsUnique();
+
+            // Configure UserPreference relationships
+            modelBuilder.Entity<UserPreference>()
+                .HasOne(up => up.User)
+                .WithMany()
+                .HasForeignKey(up => up.UserId)
+                .OnDelete(DeleteBehavior.Cascade);
+
+            // Ensure one preference record per user per preference type
+            modelBuilder.Entity<UserPreference>()
+                .HasIndex(up => new { up.UserId, up.PreferenceType })
                 .IsUnique();
         }
     }
