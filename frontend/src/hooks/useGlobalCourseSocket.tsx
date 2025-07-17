@@ -12,10 +12,12 @@ export function useGlobalCourseSocket(
   onCourseNotification: ((notification: CourseNotification) => void) | null
 ) {
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
-  const cleanupTimeoutRef = useRef<number | null>(null);
+  const cleanupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Function to safely close WebSocket connection
   const closeWebSocket = useCallback(() => {

@@ -328,7 +328,7 @@ export function useChatSocket(
           1000 * Math.pow(2, reconnectAttemptsRef.current),
           30000
         );
-        reconnectTimeoutRef.current = setTimeout(() => {
+        reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
         }, delay);

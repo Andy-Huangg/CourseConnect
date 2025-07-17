@@ -26,10 +26,12 @@ export function useStudyBuddySocket(
   onStudyBuddyUpdate: (update: StudyBuddyUpdateMessage) => void
 ) {
   const socketRef = useRef<WebSocket | null>(null);
-  const reconnectTimeoutRef = useRef<number | null>(null);
+  const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null
+  );
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
-  const cleanupTimeoutRef = useRef<number | null>(null);
+  const cleanupTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Function to safely close WebSocket connection
   const closeWebSocket = useCallback(() => {
@@ -130,7 +132,7 @@ export function useStudyBuddySocket(
       // Only attempt to reconnect if it wasn't a clean close
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;
-        reconnectTimeoutRef.current = window.setTimeout(() => {
+        reconnectTimeoutRef.current = setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
         }, delay);
