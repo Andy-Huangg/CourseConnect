@@ -107,7 +107,6 @@ export default function CourseEnrollment() {
       // Update the context instead of local state
       updateEnrollment(courseId, enroll);
     } catch (error) {
-      console.error("Error updating enrollment:", error);
       setLocalError(
         error instanceof Error
           ? error.message
@@ -156,10 +155,8 @@ export default function CourseEnrollment() {
             // Update enrollment status in context
             updateEnrollment(newCourse.id, true);
           } else {
-            console.warn("Failed to auto-enroll in newly created course");
           }
         } catch (enrollError) {
-          console.warn("Error auto-enrolling in newly created course:", enrollError);
         }
 
         // Close dialog and reset form
@@ -172,7 +169,6 @@ export default function CourseEnrollment() {
         throw new Error("Failed to create course");
       }
     } catch (error) {
-      console.error("Error creating course:", error);
       setLocalError("Failed to create course. Please try again.");
     } finally {
       setCreateLoading(false);

@@ -96,7 +96,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
         throw new Error("Failed to fetch study buddies");
       }
     } catch (error) {
-      console.error("Error fetching study buddies:", error);
       setError("Failed to load study buddy information");
     } finally {
       setIsLoading(false);
@@ -114,8 +113,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
       );
 
       if (isRelevantCourse) {
-        console.log("Received study buddy update:", update);
-
         // Update state directly based on the WebSocket message
         if (update.studyBuddy) {
           setStudyBuddies((prev) => {
@@ -230,7 +227,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
         throw new Error(errorData.message || "Failed to opt in");
       }
     } catch (error) {
-      console.error("Error opting in:", error);
       setError(error instanceof Error ? error.message : "Failed to opt in");
     } finally {
       setActionLoading(null);
@@ -262,7 +258,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
         throw new Error("Failed to opt out");
       }
     } catch (error) {
-      console.error("Error opting out:", error);
       setError("Failed to opt out");
     } finally {
       setActionLoading(null);
@@ -294,7 +289,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
         throw new Error("Failed to remove study buddy connection");
       }
     } catch (error) {
-      console.error("Error removing match:", error);
       setError("Failed to remove study buddy connection");
     } finally {
       setActionLoading(null);

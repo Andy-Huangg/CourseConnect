@@ -55,7 +55,6 @@ export function useGlobalCourseSocket(
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log("Global course connection already in progress, skipping...");
       return;
     }
 
@@ -68,7 +67,6 @@ export function useGlobalCourseSocket(
         currentState === WebSocket.OPEN ||
         currentState === WebSocket.CONNECTING
       ) {
-        console.log("Global course already connected, skipping...");
         return;
       }
 
@@ -77,9 +75,6 @@ export function useGlobalCourseSocket(
         currentState !== WebSocket.CLOSED &&
         currentState !== WebSocket.CLOSING
       ) {
-        console.log(
-          "Closing existing global course connection before creating new one"
-        );
         socketRef.current.close();
       }
     }
@@ -91,13 +86,10 @@ export function useGlobalCourseSocket(
       const wsUrl = `${
         import.meta.env.VITE_WS_URL
       }?courseId=1&token=${encodeURIComponent(token)}`;
-      console.log("Connecting to Global course WebSocket for notifications...");
-
       const newSocket = new WebSocket(wsUrl);
       socketRef.current = newSocket;
 
       newSocket.onopen = () => {
-        console.log("Global course WebSocket connected for notifications");
         isConnectingRef.current = false;
         reconnectAttemptsRef.current = 0;
       };
@@ -105,30 +97,20 @@ export function useGlobalCourseSocket(
       newSocket.onmessage = (event) => {
         try {
           const data = event.data;
-          console.log("Global course notification received:", data);
-
           if (data.startsWith("COURSE_NOTIFICATION:")) {
             const notificationJson = data.replace("COURSE_NOTIFICATION:", "");
             const notification: CourseNotification =
               JSON.parse(notificationJson);
-            console.log("Parsed course notification:", notification);
-
             if (onCourseNotification) {
               onCourseNotification(notification);
             }
           }
           // Ignore other message types (USER_COUNT, NEW_MESSAGE, etc.)
         } catch (error) {
-          console.error("Error parsing global course notification:", error);
         }
       };
 
       newSocket.onclose = (event) => {
-        console.log(
-          "Global course WebSocket connection closed:",
-          event.code,
-          event.reason
-        );
         isConnectingRef.current = false;
 
         // Only attempt to reconnect if it wasn't a normal closure
@@ -137,12 +119,6 @@ export function useGlobalCourseSocket(
             1000 * Math.pow(2, reconnectAttemptsRef.current),
             30000
           );
-          console.log(
-            `Attempting to reconnect to Global course in ${delay}ms (attempt ${
-              reconnectAttemptsRef.current + 1
-            }/5)`
-          );
-
           reconnectTimeoutRef.current = setTimeout(() => {
             reconnectAttemptsRef.current++;
             connectWebSocket();
@@ -151,11 +127,9 @@ export function useGlobalCourseSocket(
       };
 
       newSocket.onerror = (error) => {
-        console.error("Global course WebSocket error:", error);
         isConnectingRef.current = false;
       };
     } catch (error) {
-      console.error("Error creating Global course WebSocket:", error);
       isConnectingRef.current = false;
     }
   }, [onCourseNotification]);

@@ -101,7 +101,6 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
         setInputMessage("");
       } else {
         // Handle error (could show a toast notification)
-        console.error("Failed to send message:", result.error);
       }
     }
   };
@@ -149,7 +148,6 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
     ) {
       const result = await deleteMessage(selectedMessage.id);
       if (!result.success) {
-        console.error("Failed to delete message:", result.error);
       }
     }
     handleMessageMenuClose();
@@ -165,7 +163,6 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
         setIsEditDialogOpen(false);
         setEditingMessage(null);
       } else {
-        console.error("Failed to edit message:", result.error);
       }
     }
   };

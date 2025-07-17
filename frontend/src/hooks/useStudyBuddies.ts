@@ -47,7 +47,6 @@ export function useStudyBuddies() {
         throw new Error("Failed to fetch courses");
       }
     } catch (error) {
-      console.error("Error fetching courses:", error);
       return [];
     }
   }, []);
@@ -84,7 +83,6 @@ export function useStudyBuddies() {
         throw new Error("Failed to fetch study buddies");
       }
     } catch (error) {
-      console.error("Error fetching study buddies:", error);
       setError("Failed to load study buddy information");
     } finally {
       setIsLoading(false);

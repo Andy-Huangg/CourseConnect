@@ -72,9 +72,6 @@ export function usePrivateMessageSocket(
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log(
-        "Private message connection already in progress, skipping..."
-      );
       return;
     }
 
@@ -87,7 +84,6 @@ export function usePrivateMessageSocket(
         currentState === WebSocket.OPEN ||
         currentState === WebSocket.CONNECTING
       ) {
-        console.log("Private message already connected, skipping...");
         return;
       }
 
@@ -96,9 +92,6 @@ export function usePrivateMessageSocket(
         currentState !== WebSocket.CLOSED &&
         currentState !== WebSocket.CLOSING
       ) {
-        console.log(
-          "Closing existing private message connection before creating new one"
-        );
         socketRef.current.close(1000);
       }
 
@@ -109,20 +102,15 @@ export function usePrivateMessageSocket(
     // Connect to course 1 (Global) to receive private message updates
     // Private messages are user-specific, not course-specific
     const wsUrl = `${import.meta.env.VITE_WS_URL}?courseId=1&token=${token}`;
-
-    console.log(`Creating private message WebSocket connection to: ${wsUrl}`);
-
     try {
       isConnectingRef.current = true;
       socketRef.current = new WebSocket(wsUrl);
     } catch (error) {
-      console.error("Failed to create private message WebSocket:", error);
       isConnectingRef.current = false;
       return;
     }
 
     socketRef.current.onopen = () => {
-      console.log("Private message WebSocket connection opened successfully");
       isConnectingRef.current = false;
       reconnectAttemptsRef.current = 0;
     };
@@ -145,19 +133,11 @@ export function usePrivateMessageSocket(
     };
 
     socketRef.current.onclose = (event) => {
-      console.log(
-        `Private message WebSocket connection closed with code: ${event.code}, reason: ${event.reason}`
-      );
       isConnectingRef.current = false;
 
       // Only attempt to reconnect if it wasn't a clean close
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;
-        console.log(
-          `Attempting to reconnect private message WebSocket in ${delay}ms (attempt ${
-            reconnectAttemptsRef.current + 1
-          })`
-        );
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
@@ -166,7 +146,6 @@ export function usePrivateMessageSocket(
     };
 
     socketRef.current.onerror = (error) => {
-      console.error("Private message WebSocket error:", error);
       isConnectingRef.current = false;
     };
   }, [onPrivateMessageUpdate]);

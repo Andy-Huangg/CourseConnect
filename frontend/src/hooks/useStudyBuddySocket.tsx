@@ -69,7 +69,6 @@ export function useStudyBuddySocket(
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
-      console.log("Study buddy connection already in progress, skipping...");
       return;
     }
 
@@ -82,7 +81,6 @@ export function useStudyBuddySocket(
         currentState === WebSocket.OPEN ||
         currentState === WebSocket.CONNECTING
       ) {
-        console.log("Study buddy already connected, skipping...");
         return;
       }
 
@@ -91,9 +89,6 @@ export function useStudyBuddySocket(
         currentState !== WebSocket.CLOSED &&
         currentState !== WebSocket.CLOSING
       ) {
-        console.log(
-          "Closing existing study buddy connection before creating new one"
-        );
         socketRef.current.close(1000);
       }
 
@@ -103,20 +98,15 @@ export function useStudyBuddySocket(
 
     // Connect to course 1 (Global) to receive study buddy updates for all courses
     const wsUrl = `${import.meta.env.VITE_WS_URL}?courseId=1&token=${token}`;
-
-    console.log(`Creating study buddy WebSocket connection to: ${wsUrl}`);
-
     try {
       isConnectingRef.current = true;
       socketRef.current = new WebSocket(wsUrl);
     } catch (error) {
-      console.error("Failed to create study buddy WebSocket:", error);
       isConnectingRef.current = false;
       return;
     }
 
     socketRef.current.onopen = () => {
-      console.log("Study buddy WebSocket connection opened successfully");
       isConnectingRef.current = false;
       reconnectAttemptsRef.current = 0;
     };
@@ -135,19 +125,11 @@ export function useStudyBuddySocket(
     };
 
     socketRef.current.onclose = (event) => {
-      console.log(
-        `Study buddy WebSocket connection closed with code: ${event.code}, reason: ${event.reason}`
-      );
       isConnectingRef.current = false;
 
       // Only attempt to reconnect if it wasn't a clean close
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.pow(2, reconnectAttemptsRef.current) * 1000;
-        console.log(
-          `Attempting to reconnect study buddy WebSocket in ${delay}ms (attempt ${
-            reconnectAttemptsRef.current + 1
-          })`
-        );
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
@@ -156,7 +138,6 @@ export function useStudyBuddySocket(
     };
 
     socketRef.current.onerror = (error) => {
-      console.error("Study buddy WebSocket error:", error);
       isConnectingRef.current = false;
     };
   }, [onStudyBuddyUpdate]);

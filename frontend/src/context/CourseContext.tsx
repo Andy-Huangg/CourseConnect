@@ -77,7 +77,6 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
         setEnrolledCourses(enrolledData);
         setLastFetch(Date.now());
       } catch (error) {
-        console.error("Error fetching courses:", error);
         setError("Failed to load courses. Please try again.");
       } finally {
         setIsLoading(false);

@@ -41,7 +41,6 @@ export const useUserPreferences = ({
       setOrder(newOrder);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Unknown error");
-      console.error("Error updating user preferences:", err);
     }
   };
 
@@ -77,14 +76,12 @@ export const useUserPreferences = ({
             if (Array.isArray(parsedOrder)) {
               setOrder(parsedOrder);
             }
-          } catch (parseError) {
-            console.error("Failed to parse preference value:", parseError);
+          } catch {
             setOrder([]);
           }
         }
       } catch (err) {
         setError(err instanceof Error ? err.message : "Unknown error");
-        console.error("Error fetching user preferences:", err);
       } finally {
         setLoading(false);
       }

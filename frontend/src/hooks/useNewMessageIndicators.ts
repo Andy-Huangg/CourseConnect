@@ -45,12 +45,7 @@ export function useNewMessageIndicators() {
   const handleCourseMessageUpdate = useCallback(
     (courseId: number, senderId: string) => {
       const currentUserId = getCurrentUserId();
-      console.log(
-        `Course message update - CourseId: ${courseId}, SenderId: ${senderId}, CurrentUserId: ${currentUserId}`
-      );
-
       if (currentUserId && parseInt(senderId) !== currentUserId) {
-        console.log(`Setting indicator for course ${courseId} to true`);
         // Someone else sent a message in this course, set indicator to true
         setIndicators((prev) => ({
           ...prev,
@@ -67,7 +62,6 @@ export function useNewMessageIndicators() {
   // Handle global course notifications (real-time notifications from any course)
   const handleGlobalCourseNotification = useCallback(
     (notification: CourseNotification) => {
-      console.log("Received global course notification:", notification);
       if (notification.type === "COURSE_MESSAGE_NOTIFICATION") {
         handleCourseMessageUpdate(
           notification.courseId,
@@ -133,7 +127,6 @@ export function useNewMessageIndicators() {
           courseIndicators: newCourseIndicators,
         }));
       } catch (error) {
-        console.error("Error checking course indicators:", error);
       }
     },
     [getHeaders]
@@ -187,7 +180,6 @@ export function useNewMessageIndicators() {
           },
         }));
       } catch (error) {
-        console.error("Error checking private indicators:", error);
       }
     },
     [getHeaders]
@@ -216,7 +208,6 @@ export function useNewMessageIndicators() {
           }));
         }
       } catch (error) {
-        console.error("Error marking course as viewed:", error);
       }
     },
     [getHeaders]
@@ -245,9 +236,6 @@ export function useNewMessageIndicators() {
 
         if (!response.ok) {
           // If the API call fails, restore the indicator
-          console.error(
-            "Failed to mark conversation as viewed, restoring indicator"
-          );
           setIndicators((prev) => ({
             ...prev,
             privateIndicators: {
@@ -257,7 +245,6 @@ export function useNewMessageIndicators() {
           }));
         }
       } catch (error) {
-        console.error("Error marking private conversation as viewed:", error);
         // Restore the indicator on error
         setIndicators((prev) => ({
           ...prev,

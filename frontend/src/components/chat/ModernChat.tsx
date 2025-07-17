@@ -243,11 +243,9 @@ export default function ModernChat({
         const data = await response.json();
         setAnonymousName(data.anonymousName);
       } else {
-        console.error("Failed to fetch anonymous name:", response.statusText);
         setAnonymousName("");
       }
     } catch (error) {
-      console.error("Error fetching anonymous name:", error);
       setAnonymousName("");
     }
   };
@@ -328,14 +326,12 @@ export default function ModernChat({
           try {
             await markPrivateMessageAsRead(msgId);
           } catch (error) {
-            console.error("Failed to mark private message as read:", error);
           }
         }
       } else if (markCourseMessageAsRead && selectedCourse) {
         // Mark course messages as read
         unreadMessageIds.forEach((msgId) => {
           markCourseMessageAsRead(msgId).catch((error) => {
-            console.error("Failed to mark course message as read:", error);
           });
         });
       }

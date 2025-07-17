@@ -75,7 +75,6 @@ if (token) {
     const payload = JSON.parse(atob(token.split(".")[1]));
     initialState.user = payload.sub; // 'sub' claim contains the username
   } catch (e) {
-    console.error("Error parsing JWT token", e);
   }
 }
 
@@ -103,7 +102,6 @@ export const login = createAsyncThunk(
       localStorage.setItem("jwt", data.token);
       return { token: data.token, user: credentials.username };
     } catch (error) {
-      console.error("Login error:", error);
       return rejectWithValue("An error occurred during login");
     }
   }
@@ -148,7 +146,6 @@ export const signup = createAsyncThunk(
       localStorage.setItem("jwt", data.token);
       return { token: data.token, user: credentials.username };
     } catch (error) {
-      console.error("Signup error:", error);
       return rejectWithValue("An error occurred during signup");
     }
   }
@@ -191,7 +188,6 @@ export const updateDisplayName = createAsyncThunk(
         token: data.token || token,
       };
     } catch (error) {
-      console.error("Display name update error:", error);
       return rejectWithValue("An error occurred while updating display name");
     }
   }

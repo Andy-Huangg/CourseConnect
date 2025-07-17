@@ -65,11 +65,9 @@ export function useChatSocket(
 
         setMessages(chatHistory);
       } else {
-        console.error("Failed to fetch chat history:", response.statusText);
         setMessages([]);
       }
-    } catch (error) {
-      console.error("Error fetching chat history:", error);
+    } catch {
       setMessages([]);
     } finally {
       setIsLoading(false);
@@ -161,8 +159,7 @@ export function useChatSocket(
     try {
       isConnectingRef.current = true;
       socketRef.current = new WebSocket(finalUrl);
-    } catch (error) {
-      console.error("Failed to create WebSocket:", error);
+    } catch {
       isConnectingRef.current = false;
       return;
     }
@@ -200,8 +197,7 @@ export function useChatSocket(
           return;
         }
 
-        // If it's JSON but not a known type, log as unknown
-        console.warn("Unknown JSON WebSocket message format:", jsonData);
+        // If it's JSON but not a known type, ignore silently
         return;
       } catch {
         // Not JSON, continue with string-based message handling
@@ -225,8 +221,7 @@ export function useChatSocket(
             }
             return newMessages;
           });
-        } catch (error) {
-          console.error("Error parsing new message:", error);
+        } catch {
           // Fallback to refetching if parsing fails
           if (courseId) {
             fetchChatHistory(courseId);
@@ -249,8 +244,8 @@ export function useChatSocket(
             }
             return newMessages;
           });
-        } catch (error) {
-          console.error("Error parsing updated message:", error);
+        } catch {
+          // Message update parsing failed, ignore
         }
       } else if (data.startsWith("MESSAGE_DELETED:")) {
         // Handle message deletes
@@ -266,8 +261,19 @@ export function useChatSocket(
             }
             return newMessages;
           });
-        } catch (error) {
-          console.error("Error parsing deleted message ID:", error);
+        } catch {
+          // Message delete parsing failed, ignore
+        }
+      } else if (data.startsWith("COURSE_NOTIFICATION:")) {
+        // Handle course notifications (e.g., new messages in other courses)
+        try {
+          const notificationJson = data.replace("COURSE_NOTIFICATION:", "");
+          JSON.parse(notificationJson);
+
+          // Handle course notification silently
+          // You can add additional handling here if needed
+        } catch {
+          // Course notification parsing failed, ignore
         }
       } else if (data.startsWith("MESSAGE:")) {
         // Fallback for old format messages - parse manually
@@ -296,8 +302,7 @@ export function useChatSocket(
           });
         }
       } else {
-        // Unknown string message format - log and ignore
-        console.warn("Unknown string WebSocket message format:", data);
+        // Unknown string message format - ignore
       }
     };
 
@@ -316,8 +321,7 @@ export function useChatSocket(
       }
     };
 
-    socketRef.current.onerror = (error) => {
-      console.error("WebSocket error:", error);
+    socketRef.current.onerror = () => {
       isConnectingRef.current = false;
     };
   }, [url, courseId, isAnonymous, fetchChatHistory]);
@@ -417,8 +421,7 @@ export function useChatSocket(
             error: errorData.message || "Failed to edit message",
           };
         }
-      } catch (error) {
-        console.error("Error editing message:", error);
+      } catch {
         return { success: false, error: "Network error" };
       }
     },
@@ -449,8 +452,7 @@ export function useChatSocket(
           error: errorData.message || "Failed to delete message",
         };
       }
-    } catch (error) {
-      console.error("Error deleting message:", error);
+    } catch {
       return { success: false, error: "Network error" };
     }
   }, []);
