@@ -24,6 +24,7 @@ import TagIcon from "@mui/icons-material/Tag";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
+import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
 import { useCourses } from "../../hooks/useCourses";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { usePrivateMessages } from "../../hooks/usePrivateMessages";
@@ -182,6 +183,7 @@ export default function ModernChat({
     deleteMessage: deleteCourseMessage,
     isLoading: courseLoading,
     connectedUsers,
+    connectionState,
   } = useChatSocket(wsUrl, buddy ? null : selectedCourse, isAnonymous);
 
   const {
@@ -369,9 +371,18 @@ export default function ModernChat({
           alert(result?.error || "Failed to send message");
         }
       } else {
-        // For course messages, it's synchronous
-        (sendMessage as (content: string) => void)(input);
-        setInput("");
+        // For course messages, handle the synchronous result
+        const result = (
+          sendMessage as (content: string) => {
+            success: boolean;
+            error?: string;
+          }
+        )(input);
+        if (result.success) {
+          setInput("");
+        } else {
+          alert(result.error || "Failed to send message");
+        }
       }
     }
   }, [input, buddy, sendMessage]);
@@ -478,17 +489,41 @@ export default function ModernChat({
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <TagIcon sx={{ color: "text.secondary" }} />
             <Box>
-              <Typography variant="h6" fontWeight={600}>
-                {buddy
-                  ? `${buddy.displayName}`
-                  : currentCourse?.name || "Select a Course"}
-              </Typography>
+              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                <Typography variant="h6" fontWeight={600}>
+                  {buddy
+                    ? `${buddy.displayName}`
+                    : currentCourse?.name || "Select a Course"}
+                </Typography>
+                {!buddy && (
+                  <FiberManualRecordIcon
+                    sx={{
+                      fontSize: 8,
+                      color:
+                        connectionState === "connected" ? "#4caf50" : "#ff9800",
+                    }}
+                  />
+                )}
+              </Box>
               <Typography variant="caption" color="text.secondary">
                 {buddy
                   ? "Private Messages"
                   : `${messages.length} messages • ${connectedUsers} ${
                       connectedUsers === 1 ? "user" : "users"
                     } online`}
+                {!buddy && connectionState !== "connected" && (
+                  <>
+                    {" "}
+                    •{" "}
+                    <span
+                      style={{
+                        color: "#ff9800",
+                      }}
+                    >
+                      Connecting...
+                    </span>
+                  </>
+                )}
               </Typography>
             </Box>
           </Box>
@@ -697,7 +732,13 @@ export default function ModernChat({
             <TextField
               fullWidth
               variant="standard"
-              placeholder={`Message ${currentCourse?.name || "course"}`}
+              placeholder={
+                buddy
+                  ? `Message ${buddy.displayName}`
+                  : connectionState === "connected"
+                  ? `Message ${currentCourse?.name || "course"}`
+                  : "Connecting to chat..."
+              }
               value={input}
               onChange={handleInputChange}
               onKeyPress={handleKeyPress}
@@ -721,7 +762,9 @@ export default function ModernChat({
             <IconButton
               size="small"
               onClick={handleSendMessage}
-              disabled={!input.trim()}
+              disabled={
+                !input.trim() || (!buddy && connectionState !== "connected")
+              }
               sx={{
                 mr: 0.5,
                 "&:not(:disabled)": {

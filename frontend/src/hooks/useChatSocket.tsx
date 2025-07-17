@@ -26,6 +26,9 @@ export function useChatSocket(
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [connectedUsers, setConnectedUsers] = useState<number>(0);
+  const [connectionState, setConnectionState] = useState<
+    "disconnected" | "connecting" | "connected"
+  >("disconnected");
   const reconnectTimeoutRef = useRef<number | null>(null);
   const reconnectAttemptsRef = useRef(0);
   const isConnectingRef = useRef(false);
@@ -75,7 +78,7 @@ export function useChatSocket(
   }, []);
 
   // Function to safely close WebSocket connection
-  const closeWebSocket = useCallback(() => {
+  const closeWebSocket = useCallback((setDisconnected = true) => {
     if (socketRef.current) {
       const currentState = socketRef.current.readyState;
 
@@ -94,6 +97,11 @@ export function useChatSocket(
     isConnectingRef.current = false;
     currentCourseIdRef.current = null;
 
+    // Only set to disconnected if explicitly requested (not when switching courses)
+    if (setDisconnected) {
+      setConnectionState("disconnected");
+    }
+
     // Clear any pending reconnection attempts
     if (reconnectTimeoutRef.current) {
       clearTimeout(reconnectTimeoutRef.current);
@@ -110,6 +118,9 @@ export function useChatSocket(
   // WebSocket connection with auto-reconnect
   const connectWebSocket = useCallback(() => {
     if (!courseId || !url) return;
+
+    // Set connecting state immediately
+    setConnectionState("connecting");
 
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
@@ -161,11 +172,13 @@ export function useChatSocket(
       socketRef.current = new WebSocket(finalUrl);
     } catch {
       isConnectingRef.current = false;
+      setConnectionState("disconnected");
       return;
     }
 
     socketRef.current.onopen = () => {
       isConnectingRef.current = false;
+      setConnectionState("connected");
       reconnectAttemptsRef.current = 0; // Reset reconnect attempts on successful connection
     };
 
@@ -308,6 +321,7 @@ export function useChatSocket(
 
     socketRef.current.onclose = (event) => {
       isConnectingRef.current = false;
+      setConnectionState("disconnected");
       // Auto-reconnect with exponential backoff (unless manually closed)
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.min(
@@ -323,6 +337,7 @@ export function useChatSocket(
 
     socketRef.current.onerror = () => {
       isConnectingRef.current = false;
+      setConnectionState("disconnected");
     };
   }, [url, courseId, isAnonymous, fetchChatHistory]);
 
@@ -330,6 +345,7 @@ export function useChatSocket(
     // Clear messages and user count when course changes
     setMessages([]);
     setConnectedUsers(0);
+    // Don't immediately set to disconnected - let the connection process handle the state
 
     // Clear any pending reconnection attempts
     if (reconnectTimeoutRef.current) {
@@ -338,7 +354,8 @@ export function useChatSocket(
 
     if (!url || !courseId) {
       // Close any existing connection when no course is selected
-      closeWebSocket();
+      setConnectionState("disconnected");
+      closeWebSocket(true); // Only set disconnected when no course is selected
       return;
     }
 
@@ -349,13 +366,13 @@ export function useChatSocket(
 
     // Close existing connection first if we're switching courses/buddies
     if (currentCourseIdRef.current !== courseId && socketRef.current) {
-      closeWebSocket();
+      closeWebSocket(false); // Don't set disconnected state when switching courses
     }
 
     // Connect WebSocket with a small delay to prevent rapid reconnection
     cleanupTimeoutRef.current = setTimeout(() => {
       connectWebSocket();
-    }, 100);
+    }, 200); // Increased delay from 100ms to 200ms for more stable connections
 
     return () => {
       if (cleanupTimeoutRef.current) {
@@ -363,7 +380,7 @@ export function useChatSocket(
       }
       // Only close if we're actually switching courses or unmounting
       if (currentCourseIdRef.current !== courseId) {
-        closeWebSocket();
+        closeWebSocket(false); // Don't set disconnected when switching courses
       }
     };
   }, [url, courseId, fetchChatHistory, connectWebSocket, closeWebSocket]);
@@ -373,7 +390,7 @@ export function useChatSocket(
     // Only reconnect if we already have an active connection and anonymous mode changed
     if (socketRef.current && courseId && url) {
       // Close existing connection and reconnect with new anonymous mode
-      closeWebSocket();
+      closeWebSocket(false); // Don't set disconnected when changing anonymous mode
 
       // Add a small delay before reconnecting
       const reconnectTimeout = setTimeout(() => {
@@ -387,11 +404,27 @@ export function useChatSocket(
   }, [isAnonymous, connectWebSocket, closeWebSocket, courseId, url]);
 
   const sendMessage = useCallback((message: string) => {
-    if (!message.trim()) return;
+    if (!message.trim()) {
+      return { success: false, error: "Message cannot be empty" };
+    }
 
     // Handle course messages via WebSocket
     if (socketRef.current?.readyState === WebSocket.OPEN) {
       socketRef.current.send(message.trim());
+      return { success: true };
+    } else {
+      // Connection is not ready
+      const state = socketRef.current?.readyState;
+      let errorMessage = "Connection not established";
+
+      if (state === WebSocket.CONNECTING) {
+        errorMessage =
+          "Still connecting to chat server. Please wait a moment and try again.";
+      } else if (state === WebSocket.CLOSING || state === WebSocket.CLOSED) {
+        errorMessage = "Connection lost. Reconnecting...";
+      }
+
+      return { success: false, error: errorMessage };
     }
   }, []);
 
@@ -464,5 +497,6 @@ export function useChatSocket(
     deleteMessage,
     isLoading,
     connectedUsers,
+    connectionState,
   };
 }
