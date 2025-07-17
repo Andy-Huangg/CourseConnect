@@ -14,11 +14,13 @@ namespace backend.Controllers
     public class UserController : ControllerBase
     {
         private readonly IUserRepository _userRepository;
+        private readonly IUserPreferenceRepository _userPreferenceRepository;
         private readonly IConfiguration _configuration;
 
-        public UserController(IUserRepository userRepository, IConfiguration configuration)
+        public UserController(IUserRepository userRepository, IUserPreferenceRepository userPreferenceRepository, IConfiguration configuration)
         {
             _userRepository = userRepository;
+            _userPreferenceRepository = userPreferenceRepository;
             _configuration = configuration;
         }
 
@@ -115,10 +117,77 @@ namespace backend.Controllers
 
             return new JwtSecurityTokenHandler().WriteToken(token);
         }
+
+        [HttpGet("preferences/{preferenceType}")]
+        public async Task<IActionResult> GetUserPreference(string preferenceType)
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized(new { message = "Invalid user token" });
+            }
+
+            var preference = await _userPreferenceRepository.GetUserPreferenceAsync(userId, preferenceType);
+
+            if (preference == null)
+            {
+                return Ok(new { preferenceType, preferenceValue = (string?)null });
+            }
+
+            return Ok(new
+            {
+                preferenceType = preference.PreferenceType,
+                preferenceValue = preference.PreferenceValue
+            });
+        }
+
+        [HttpPost("preferences")]
+        public async Task<IActionResult> UpdateUserPreference([FromBody] UpdateUserPreferenceRequest request)
+        {
+            if (string.IsNullOrWhiteSpace(request.PreferenceType) || string.IsNullOrWhiteSpace(request.PreferenceValue))
+            {
+                return BadRequest(new { message = "PreferenceType and PreferenceValue are required" });
+            }
+
+            // Validate preference type
+            if (request.PreferenceType != "courseOrder" && request.PreferenceType != "studyBuddyOrder")
+            {
+                return BadRequest(new { message = "Invalid preference type. Must be 'courseOrder' or 'studyBuddyOrder'" });
+            }
+
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized(new { message = "Invalid user token" });
+            }
+
+            try
+            {
+                var preference = await _userPreferenceRepository.CreateOrUpdateUserPreferenceAsync(
+                    userId, request.PreferenceType, request.PreferenceValue);
+
+                return Ok(new
+                {
+                    message = "Preference updated successfully",
+                    preferenceType = preference.PreferenceType,
+                    preferenceValue = preference.PreferenceValue
+                });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to update preference", error = ex.Message });
+            }
+        }
     }
 
     public class UpdateDisplayNameRequest
     {
         public required string DisplayName { get; set; }
+    }
+
+    public class UpdateUserPreferenceRequest
+    {
+        public required string PreferenceType { get; set; }
+        public required string PreferenceValue { get; set; }
     }
 }

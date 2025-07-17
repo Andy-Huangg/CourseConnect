@@ -38,6 +38,7 @@ namespace backend
             builder.Services.AddScoped<IChatRepository, ChatRepository>();
             builder.Services.AddScoped<ICourseRepository, CourseRepository>();
             builder.Services.AddScoped<IUserRepository, UserRepository>();
+            builder.Services.AddScoped<IUserPreferenceRepository, UserPreferenceRepository>();
             builder.Services.AddScoped<IStudyBuddyRepository, StudyBuddyRepository>();
             builder.Services.AddScoped<IPrivateMessageRepository, PrivateMessageRepository>();
             builder.Services.AddScoped<IAnonymousNameService, AnonymousNameService>();
