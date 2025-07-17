@@ -642,81 +642,6 @@ function App() {
           ))}
         </Box>
 
-        {/* Interactive Demo Section */}
-        <Card
-          sx={{
-            p: 6,
-            borderRadius: 4,
-            background:
-              "linear-gradient(135deg, rgba(102, 126, 234, 0.05) 0%, rgba(118, 75, 162, 0.05) 100%)",
-            border: "2px solid",
-            borderColor: "rgba(102, 126, 234, 0.1)",
-            textAlign: "center",
-            mb: 8,
-          }}
-        >
-          <Typography
-            variant="h4"
-            sx={{
-              mb: 3,
-              fontWeight: "bold",
-              background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-              backgroundClip: "text",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-            }}
-          >
-            See It In Action
-          </Typography>
-          <Typography
-            variant="h6"
-            color="text.secondary"
-            sx={{ mb: 4, maxWidth: "500px", mx: "auto" }}
-          >
-            Watch how students connect instantly through anonymous chat and find
-            their perfect study partners.
-          </Typography>
-          <Stack
-            direction={{ xs: "column", sm: "row" }}
-            spacing={2}
-            justifyContent="center"
-          >
-            <Button
-              variant="contained"
-              size="large"
-              startIcon={<Speed />}
-              sx={{
-                background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-                py: 1.5,
-                px: 4,
-                borderRadius: 3,
-                fontWeight: "bold",
-                "&:hover": {
-                  background:
-                    "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
-                },
-              }}
-            >
-              Try Live Demo
-            </Button>
-            <Button
-              variant="outlined"
-              size="large"
-              startIcon={<QuestionAnswer />}
-              sx={{
-                py: 1.5,
-                px: 4,
-                borderRadius: 3,
-                fontWeight: "bold",
-                borderWidth: 2,
-                "&:hover": { borderWidth: 2 },
-              }}
-            >
-              Learn More
-            </Button>
-          </Stack>
-        </Card>
-
         {/* CTA Section */}
         <Paper
           sx={{
@@ -871,7 +796,7 @@ function App() {
           color="text.secondary"
           sx={{ fontSize: { xs: "0.875rem", sm: "1rem" } }}
         >
-          © 2025 Built with ❤️ by Andy
+          Built by Andy
         </Typography>
       </Box>
     </Box>
