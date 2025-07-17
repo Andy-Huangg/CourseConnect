@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import {
   Box,
   AppBar,
@@ -36,7 +36,16 @@ import CourseOverview from "../CourseOverview";
 import { useCourses } from "../../hooks/useCourses";
 import { useStudyBuddies } from "../../hooks/useStudyBuddies";
 import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
+import { useUserPreferences } from "../../hooks/useUserPreferences";
 import Settings from "../Settings";
+import DraggableList from "../DraggableList";
+
+// Define the Course interface locally
+interface Course {
+  id: number;
+  name: string;
+  userCount?: number;
+}
 
 const drawerWidth = 280;
 
@@ -126,6 +135,38 @@ export default function ChatLayout() {
   const { enrolledCourses } = useCourses();
   const { matchedBuddies } = useStudyBuddies();
 
+  // User preferences for order
+  const { order: courseOrder, setOrder: setCourseOrder } = useUserPreferences({
+    preferenceType: "courseOrder",
+  });
+
+  const { order: buddyOrder, setOrder: setBuddyOrder } = useUserPreferences({
+    preferenceType: "studyBuddyOrder",
+  });
+
+  // Create ordered lists based on user preferences
+  const orderedCourses = useMemo(() => {
+    if (courseOrder.length === 0) return enrolledCourses;
+
+    const orderMap = new Map(courseOrder.map((id, index) => [id, index]));
+    return [...enrolledCourses].sort((a, b) => {
+      const orderA = orderMap.get(a.id) ?? 999;
+      const orderB = orderMap.get(b.id) ?? 999;
+      return orderA - orderB;
+    });
+  }, [enrolledCourses, courseOrder]);
+
+  const orderedBuddies = useMemo(() => {
+    if (buddyOrder.length === 0) return matchedBuddies;
+
+    const orderMap = new Map(buddyOrder.map((id, index) => [id, index]));
+    return [...matchedBuddies].sort((a, b) => {
+      const orderA = orderMap.get(a.buddy?.id ?? -1) ?? 999;
+      const orderB = orderMap.get(b.buddy?.id ?? -1) ?? 999;
+      return orderA - orderB;
+    });
+  }, [matchedBuddies, buddyOrder]);
+
   // Helper function to get display name from token
   const getDisplayName = () => {
     try {
@@ -152,21 +193,21 @@ export default function ChatLayout() {
 
   // Only check indicators when user navigates or on initial load
   useEffect(() => {
-    if (enrolledCourses.length > 0 && !hasCheckedInitialIndicators.current) {
-      const courseIds = enrolledCourses.map((course) => course.id);
+    if (orderedCourses.length > 0 && !hasCheckedInitialIndicators.current) {
+      const courseIds = orderedCourses.map((course) => course.id);
       checkCourseIndicators(courseIds);
       hasCheckedInitialIndicators.current = true;
     }
-  }, [enrolledCourses, checkCourseIndicators]);
+  }, [orderedCourses, checkCourseIndicators]);
 
   // Check private message indicators only once when buddies are first available
   useEffect(() => {
-    if (matchedBuddies.length > 0 && !hasCheckedPrivateIndicators.current) {
-      const userIds = matchedBuddies.map((buddy) => buddy.buddy!.id);
+    if (orderedBuddies.length > 0 && !hasCheckedPrivateIndicators.current) {
+      const userIds = orderedBuddies.map((buddy) => buddy.buddy!.id);
       checkPrivateIndicators(userIds);
       hasCheckedPrivateIndicators.current = true;
     }
-  }, [matchedBuddies, checkPrivateIndicators]);
+  }, [orderedBuddies, checkPrivateIndicators]);
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
 
@@ -328,8 +369,8 @@ export default function ChatLayout() {
 
       <SectionHeader>My Courses</SectionHeader>
 
-      <List sx={{ py: 1 }}>
-        {enrolledCourses.length === 0 ? (
+      {orderedCourses.length === 0 ? (
+        <List sx={{ py: 1 }}>
           <ListItem>
             <ListItemText
               primary="No courses enrolled"
@@ -341,132 +382,123 @@ export default function ChatLayout() {
               secondaryTypographyProps={{ variant: "caption" }}
             />
           </ListItem>
-        ) : (
-          enrolledCourses.map((course) => (
-            <ListItem key={course.id} disablePadding>
-              <ListItemButton
-                onClick={() => handleCourseSelect(course.id)}
+        </List>
+      ) : (
+        <DraggableList<Course>
+          items={orderedCourses.map((course) => ({
+            id: course.id,
+            data: course,
+          }))}
+          onReorder={setCourseOrder}
+          onItemClick={(course) => handleCourseSelect(course.id)}
+          isSelected={(course) =>
+            activeSection === "chat" &&
+            chatMode === "course" &&
+            selectedCourse === course.id
+          }
+          showReorderHint={orderedCourses.length > 1}
+          renderItem={(course) => (
+            <>
+              <ListItemIcon
                 sx={{
-                  ...sidebarItemStyle,
-                  "&.Mui-selected": {
-                    backgroundColor:
-                      courseConnectColors[mode].sidebarItemActiveBg,
-                    color: courseConnectColors[mode].sidebarItemActive,
-                  },
+                  minWidth: 40,
+                  color: courseConnectColors[mode].sidebarItem,
                 }}
-                selected={
-                  activeSection === "chat" &&
-                  chatMode === "course" &&
-                  selectedCourse === course.id
-                }
               >
+                <TagIcon />
+              </ListItemIcon>
+              <ListItemText
+                primary={course.name}
+                primaryTypographyProps={{
+                  variant: "body2",
+                  fontWeight: selectedCourse === course.id ? 600 : 400,
+                }}
+              />
+              {getCourseIndicator(course.id) && (
+                <Tooltip title="New unread messages" arrow>
+                  <Box
+                    sx={{
+                      width: 8,
+                      height: 8,
+                      borderRadius: "50%",
+                      backgroundColor: "#ff5722",
+                      flexShrink: 0,
+                    }}
+                  />
+                </Tooltip>
+              )}
+            </>
+          )}
+        />
+      )}
+
+      {orderedBuddies.length > 0 && (
+        <>
+          <SectionHeader>Study Buddies</SectionHeader>
+          <DraggableList<(typeof orderedBuddies)[0]>
+            items={orderedBuddies.map((studyBuddy) => ({
+              id: studyBuddy.buddy?.id || 0,
+              data: studyBuddy,
+            }))}
+            onReorder={setBuddyOrder}
+            onItemClick={(studyBuddy) =>
+              studyBuddy.buddy && handleBuddySelect(studyBuddy.buddy)
+            }
+            isSelected={(studyBuddy) =>
+              activeSection === "chat" &&
+              chatMode === "private" &&
+              selectedBuddy?.id === studyBuddy.buddy?.id
+            }
+            showReorderHint={orderedBuddies.length > 1}
+            renderItem={(studyBuddy) => (
+              <>
                 <ListItemIcon
                   sx={{
                     minWidth: 40,
                     color: courseConnectColors[mode].sidebarItem,
                   }}
                 >
-                  <TagIcon />
-                </ListItemIcon>
-                <ListItemText
-                  primary={course.name}
-                  primaryTypographyProps={{
-                    variant: "body2",
-                    fontWeight: selectedCourse === course.id ? 600 : 400,
-                  }}
-                />
-                {getCourseIndicator(course.id) && (
-                  <Tooltip title="New unread messages" arrow>
-                    <Box
-                      sx={{
-                        width: 8,
-                        height: 8,
-                        borderRadius: "50%",
-                        backgroundColor: "#ff5722",
-                        flexShrink: 0,
-                      }}
-                    />
-                  </Tooltip>
-                )}
-              </ListItemButton>
-            </ListItem>
-          ))
-        )}
-      </List>
-
-      {matchedBuddies.length > 0 && (
-        <>
-          <SectionHeader>Study Buddies</SectionHeader>
-          <List sx={{ py: 1 }}>
-            {matchedBuddies.map((studyBuddy) => (
-              <ListItem
-                key={`buddy-${studyBuddy.buddy?.id}-${studyBuddy.courseId}`}
-                disablePadding
-              >
-                <ListItemButton
-                  onClick={() => handleBuddySelect(studyBuddy.buddy!)}
-                  sx={{
-                    ...sidebarItemStyle,
-                    "&.Mui-selected": {
-                      backgroundColor:
-                        courseConnectColors[mode].sidebarItemActiveBg,
-                      color: courseConnectColors[mode].sidebarItemActive,
-                    },
-                  }}
-                  selected={
-                    activeSection === "chat" &&
-                    chatMode === "private" &&
-                    selectedBuddy?.id === studyBuddy.buddy?.id
-                  }
-                >
-                  <ListItemIcon
+                  <Avatar
                     sx={{
-                      minWidth: 40,
-                      color: courseConnectColors[mode].sidebarItem,
+                      width: 24,
+                      height: 24,
+                      fontSize: "0.75rem",
+                      backgroundColor: muiTheme.palette.secondary.main,
                     }}
                   >
-                    <Avatar
-                      sx={{
-                        width: 24,
-                        height: 24,
-                        fontSize: "0.75rem",
-                        backgroundColor: muiTheme.palette.secondary.main,
-                      }}
-                    >
-                      {studyBuddy.buddy?.displayName?.charAt(0).toUpperCase()}
-                    </Avatar>
-                  </ListItemIcon>
-                  <ListItemText
-                    primary={studyBuddy.buddy?.displayName}
-                    secondary={studyBuddy.courseName}
-                    primaryTypographyProps={{
-                      variant: "body2",
-                      fontWeight:
-                        selectedBuddy?.id === studyBuddy.buddy?.id ? 600 : 400,
-                    }}
-                    secondaryTypographyProps={{
-                      variant: "caption",
-                      color: "text.secondary",
-                    }}
-                  />
-                  {studyBuddy.buddy &&
-                    getPrivateIndicator(studyBuddy.buddy.id) && (
-                      <Tooltip title="New unread private messages" arrow>
-                        <Box
-                          sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: "50%",
-                            backgroundColor: "#ff5722",
-                            flexShrink: 0,
-                          }}
-                        />
-                      </Tooltip>
-                    )}
-                </ListItemButton>
-              </ListItem>
-            ))}
-          </List>
+                    {studyBuddy.buddy?.displayName?.charAt(0).toUpperCase()}
+                  </Avatar>
+                </ListItemIcon>
+                <ListItemText
+                  primary={studyBuddy.buddy?.displayName}
+                  secondary={studyBuddy.courseName}
+                  primaryTypographyProps={{
+                    variant: "body2",
+                    fontWeight:
+                      selectedBuddy?.id === studyBuddy.buddy?.id ? 600 : 400,
+                  }}
+                  secondaryTypographyProps={{
+                    variant: "caption",
+                    color: "text.secondary",
+                  }}
+                />
+                {studyBuddy.buddy &&
+                  getPrivateIndicator(studyBuddy.buddy.id) && (
+                    <Tooltip title="New unread private messages" arrow>
+                      <Box
+                        sx={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: "50%",
+                          backgroundColor: "#ff5722",
+                          flexShrink: 0,
+                        }}
+                      />
+                    </Tooltip>
+                  )}
+              </>
+            )}
+          />
         </>
       )}
 
