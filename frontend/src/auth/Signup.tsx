@@ -16,6 +16,10 @@ import { signup, clearError } from "./authSlice";
 export default function Signup() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
+  const [validationErrors, setValidationErrors] = useState({
+    username: "",
+    password: "",
+  });
 
   const navigate = useNavigate();
   const dispatch = useAppDispatch();
@@ -35,9 +39,56 @@ export default function Signup() {
     dispatch(clearError());
   }, [dispatch]);
 
+  // Validation functions
+  const validateUsername = (value: string) => {
+    if (value.length < 3) {
+      return "Username must be at least 3 characters long";
+    }
+    return "";
+  };
+
+  const validatePassword = (value: string) => {
+    if (value.length < 4) {
+      return "Password must be at least 4 characters long";
+    }
+    return "";
+  };
+
+  // Handle input changes with validation
+  const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setUsername(value);
+    setValidationErrors(prev => ({
+      ...prev,
+      username: validateUsername(value)
+    }));
+  };
+
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    setValidationErrors(prev => ({
+      ...prev,
+      password: validatePassword(value)
+    }));
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    dispatch(signup({ username, password }));
+    
+    // Validate both fields before submission
+    const usernameError = validateUsername(username);
+    const passwordError = validatePassword(password);
+    
+    setValidationErrors({
+      username: usernameError,
+      password: passwordError,
+    });
+    
+    // Only proceed if no validation errors
+    if (!usernameError && !passwordError) {
+      dispatch(signup({ username, password }));
+    }
   };
 
   return (
@@ -82,9 +133,11 @@ export default function Signup() {
             fullWidth
             margin="normal"
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={handleUsernameChange}
             autoComplete="username"
             variant="outlined"
+            error={!!validationErrors.username}
+            helperText={validationErrors.username || "Minimum 3 characters"}
             sx={{ mb: 2 }}
           />
           <TextField
@@ -93,16 +146,24 @@ export default function Signup() {
             fullWidth
             margin="normal"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={handlePasswordChange}
             autoComplete="new-password"
             variant="outlined"
+            error={!!validationErrors.password}
+            helperText={validationErrors.password || "Minimum 4 characters"}
             sx={{ mb: 3 }}
           />
           <Button
             type="submit"
             variant="contained"
             fullWidth
-            disabled={isLoading}
+            disabled={
+              isLoading || 
+              !!validationErrors.username || 
+              !!validationErrors.password ||
+              username.length < 3 ||
+              password.length < 4
+            }
             sx={{
               py: 1.5,
               fontSize: "1rem",
