@@ -86,7 +86,7 @@ namespace backend.Models
                 .HasOne(cmr => cmr.User)
                 .WithMany()
                 .HasForeignKey(cmr => cmr.UserId)
-                .OnDelete(DeleteBehavior.NoAction);
+                .OnDelete(DeleteBehavior.Cascade);
 
             // Ensure one read record per user per message
             modelBuilder.Entity<ChatMessageRead>()
