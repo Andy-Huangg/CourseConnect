@@ -331,7 +331,7 @@ export function useChatSocket(
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
-        }, delay);
+        }, delay) as unknown as number;
       }
     };
 
@@ -370,9 +370,9 @@ export function useChatSocket(
     }
 
     // Connect WebSocket with a small delay to prevent rapid reconnection
-    cleanupTimeoutRef.current = setTimeout(() => {
+    cleanupTimeoutRef.current = window.setTimeout(() => {
       connectWebSocket();
-    }, 200); // Increased delay from 100ms to 200ms for more stable connections
+    }, 200) as unknown as number; // Increased delay from 100ms to 200ms for more stable connections
 
     return () => {
       if (cleanupTimeoutRef.current) {

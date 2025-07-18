@@ -141,7 +141,7 @@ export function usePrivateMessageSocket(
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
           connectWebSocket();
-        }, delay);
+        }, delay) as unknown as number;
       }
     };
 
@@ -157,9 +157,9 @@ export function usePrivateMessageSocket(
     }
 
     // Connect with a small delay to prevent rapid reconnection
-    cleanupTimeoutRef.current = setTimeout(() => {
+    cleanupTimeoutRef.current = window.setTimeout(() => {
       connectWebSocket();
-    }, 100);
+    }, 100) as unknown as number;
 
     return () => {
       if (cleanupTimeoutRef.current) {
