@@ -58,33 +58,33 @@ export default function Signup() {
   const handleUsernameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setUsername(value);
-    setValidationErrors(prev => ({
+    setValidationErrors((prev) => ({
       ...prev,
-      username: validateUsername(value)
+      username: validateUsername(value),
     }));
   };
 
   const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value;
     setPassword(value);
-    setValidationErrors(prev => ({
+    setValidationErrors((prev) => ({
       ...prev,
-      password: validatePassword(value)
+      password: validatePassword(value),
     }));
   };
 
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate both fields before submission
     const usernameError = validateUsername(username);
     const passwordError = validatePassword(password);
-    
+
     setValidationErrors({
       username: usernameError,
       password: passwordError,
     });
-    
+
     // Only proceed if no validation errors
     if (!usernameError && !passwordError) {
       dispatch(signup({ username, password }));
@@ -158,8 +158,8 @@ export default function Signup() {
             variant="contained"
             fullWidth
             disabled={
-              isLoading || 
-              !!validationErrors.username || 
+              isLoading ||
+              !!validationErrors.username ||
               !!validationErrors.password ||
               username.length < 3 ||
               password.length < 4

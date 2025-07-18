@@ -12,7 +12,6 @@ import {
 import { useNavigate, Link as RouterLink } from "react-router-dom";
 import { useAppDispatch, useAppSelector } from "../app/hooks";
 import { login, clearError } from "./authSlice";
-import { useCourses } from "../hooks/useCourses";
 
 export default function Login() {
   const [username, setUsername] = useState("");
@@ -23,7 +22,6 @@ export default function Login() {
   const { isAuthenticated, isLoading, error } = useAppSelector(
     (state) => state.auth
   );
-  const { refreshCourses } = useCourses();
 
   // Redirect if already authenticated
   useEffect(() => {
@@ -41,7 +39,6 @@ export default function Login() {
     e.preventDefault();
     const result = await dispatch(login({ username, password }));
     if (login.fulfilled.match(result)) {
-      await refreshCourses();
       navigate("/home");
     }
     // If login fails, error will be shown by existing error logic
