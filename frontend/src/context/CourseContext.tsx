@@ -29,7 +29,7 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
   const [lastFetch, setLastFetch] = useState<number>(0);
 
   const apiUrl = import.meta.env.VITE_API_URL;
-  
+
   // Get auth state from Redux instead of localStorage directly
   const { isAuthenticated, token } = useAppSelector((state) => state.auth);
 
@@ -74,7 +74,10 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
 
         if (!coursesResponse.ok || !enrolledResponse.ok) {
           // Handle 401 specifically - don't show error for unauthorized requests
-          if (coursesResponse.status === 401 || enrolledResponse.status === 401) {
+          if (
+            coursesResponse.status === 401 ||
+            enrolledResponse.status === 401
+          ) {
             // Token is invalid/expired, let auth handle this
             return;
           }
@@ -108,7 +111,7 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
       const timeoutId = setTimeout(() => {
         fetchCourses();
       }, 100);
-      
+
       return () => clearTimeout(timeoutId);
     } else {
       // Clear courses when not authenticated
