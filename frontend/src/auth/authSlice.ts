@@ -67,18 +67,6 @@ const getInitialAuthState = (): AuthState => {
 
 const initialState: AuthState = getInitialAuthState();
 
-// Try to extract username from token
-const token = localStorage.getItem("jwt");
-if (token) {
-  try {
-    // Simple JWT parsing (payload is the second part)
-    const payload = JSON.parse(atob(token.split(".")[1]));
-    initialState.user = payload.sub; // 'sub' claim contains the username
-  } catch {
-    // Token parsing failed, ignore
-  }
-}
-
 // Async thunks
 export const login = createAsyncThunk(
   "auth/login",
@@ -138,7 +126,7 @@ export const signup = createAsyncThunk(
         const errorMessage = data.message || responseText || "Signup failed";
         return rejectWithValue(
           errorMessage === "Username already exists."
-            ? "User taken"
+            ? "Username already exists."
             : errorMessage
         );
       }
