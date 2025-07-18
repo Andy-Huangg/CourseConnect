@@ -79,7 +79,7 @@ namespace backend
                 options.AddPolicy("AllowFrontend",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "https://msa-phase2.vercel.app")
+                        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "https://msa-phase2.vercel.app", "https://course-connect-andy-huanggs-projects.vercel.app")
                               .AllowAnyHeader()
                               .AllowAnyMethod();
                     });
