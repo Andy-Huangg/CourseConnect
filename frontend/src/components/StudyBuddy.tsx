@@ -390,11 +390,14 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
 
                 {isOptedIn ? (
                   <Box>
-                    <Chip
-                      label="Looking for study buddy"
-                      color="primary"
-                      sx={{ mb: 2 }}
-                    />
+                    {/* Only show "Looking for study buddy" chip if no buddy is found yet */}
+                    {!hasBuddy && (
+                      <Chip
+                        label="Looking for study buddy"
+                        color="primary"
+                        sx={{ mb: 2 }}
+                      />
+                    )}
 
                     {hasBuddy ? (
                       <Box>
