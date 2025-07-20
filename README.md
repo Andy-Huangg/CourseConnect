@@ -2,11 +2,11 @@
 
 ## Introduction
 
-Course Connect is a full‑stack web application that lets university students communicate in real time. Users can join course‑specific chatrooms to discuss topics anonymously and opt into a **Study Buddy** feature for private one‑on‑one collaboration.
+Course Connect is a full‑stack web application that lets university students communicate in real time. Users can join course‑specific chatrooms to discuss topics anonymously and opt into a Study Buddy feature for private one‑on‑one collaboration.
 
 ## Relation to the Networking Theme
 
-By enabling real‑time course chat and anonymous peer pairing, Course Connect directly supports the **Networking** theme, helping students build connections, share knowledge, and form study partnerships in a low‑barrier environment.
+By enabling real‑time course chat with anonymity and peer pairing, Course Connect directly supports the Networking theme, helping students build connections, share knowledge, and form study partnerships in a low‑barrier environment.
 
 ## Unique Features
 
@@ -25,11 +25,173 @@ The following three advanced features are to be marked for assessment:
 
 ### Other Advanced Features
 
-These additional features showcase extra effort (not marked):
+These additional features have also been implemented:
 
 - **Redux** for centralized state management
 - **Dockerization** of both frontend and backend for consistent environments
 
 ## Video Demonstration
 
+<!-- Video demonstration link will be added here once available. -->
+
 ## Setup Instructions
+
+### Prerequisites
+
+Before setting up Course Connect, ensure you have the following installed:
+
+- **Node.js** (v18 or higher)
+- **npm** or **yarn**
+- **.NET 8.0 SDK**
+- **Docker** and **Docker Compose** (for containerized setup)
+- **Git**
+
+### Environment Configuration
+
+The project requires several environment variables and configuration files:
+
+#### Backend Configuration
+
+1. **Create a `.env` file** in the `backend/` directory with the following structure:
+
+   ```env
+   Jwt__Key=<YOUR_JWT_SECRET_KEY>
+   ConnectionStrings__AzureSqlConnection=<YOUR_DATABASE_CONNECTION_STRING>
+   ```
+
+2. **Update `backend/appsettings.json`** with your JWT configuration:
+
+   ```json
+   {
+     "Jwt": {
+       "Key": "<YOUR_JWT_SECRET_KEY>",
+       "Issuer": "<YOUR_ISSUER_URL>",
+       "Audience": "<YOUR_AUDIENCE>"
+     }
+   }
+   ```
+
+   **Generate a secure JWT key:**
+
+   ```bash
+   # Use Node.js to generate a 32-byte base64 key
+   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
+
+   # Or use PowerShell on Windows
+   [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
+   ```
+
+#### Frontend Configuration
+
+1. **Create a `.env` file** in the `frontend/` directory:
+
+   ```env
+   VITE_API_URL=https://localhost:7152
+   VITE_WS_URL=wss://localhost:7152/ws/chat
+   ```
+
+   > **Note:** Update these URLs to match your backend deployment URL in production.
+
+2. **For Cypress testing**, copy `frontend/cypress.env.example.json` to `frontend/cypress.env.json` and update if needed:
+   ```json
+   {
+     "VITE_API_URL": "http://localhost:5054"
+   }
+   ```
+
+### Setup Options
+
+#### Option 1: Docker Setup
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/Andy-Huangg/CourseConnect.git
+   cd CourseConnect
+   ```
+
+2. **Configure environment variables** (see Environment Configuration above)
+
+3. **Run with Docker Compose:**
+
+   ```bash
+   docker-compose up --build
+   ```
+
+4. **Access the application:**
+   - Frontend: http://localhost:3000
+   - Backend API: http://localhost:5000
+   - Backend Swagger UI: http://localhost:5000/swagger
+
+#### Option 2: Manual Setup
+
+1. **Clone the repository:**
+
+   ```bash
+   git clone https://github.com/Andy-Huangg/CourseConnect.git
+   cd CourseConnect
+   ```
+
+2. **Setup Backend:**
+
+   ```bash
+   cd backend
+   dotnet restore
+   dotnet ef database update
+   dotnet run
+   ```
+
+3. **Setup Frontend (in a new terminal):**
+
+   ```bash
+   cd frontend
+   npm install
+   npm run dev
+   ```
+
+4. **Access the application:**
+   - Frontend: http://localhost:5173 (Vite dev server)
+   - Backend API: https://localhost:7152 or http://localhost:5054
+   - Backend Swagger UI: https://localhost:7152/swagger
+
+### Testing
+
+#### Running Cypress Tests
+
+```bash
+cd frontend
+npm install
+npx cypress run
+# or for interactive mode
+npx cypress open
+```
+
+## Troubleshooting
+
+### Common Issues
+
+**Backend fails to start with JWT error:**
+
+- Ensure all JWT configuration values are set in `appsettings.json` (Key, Issuer, Audience)
+- Verify the JWT key is a valid base64 string (minimum 32 characters)
+
+**Frontend cannot connect to backend:**
+
+- Check that `VITE_API_URL` in frontend `.env` matches your backend URL
+- Ensure backend is running and accessible
+- Verify CORS configuration allows your frontend origin
+
+**Database connection issues:**
+
+- Confirm database connection string is correct in backend `.env`
+- Run `dotnet ef database update` to apply migrations
+- Check that SQL Server is running and accessible
+
+**WebSocket connection fails:**
+
+- Verify `VITE_WS_URL` in frontend `.env` uses the correct protocol (wss:// for HTTPS, ws:// for HTTP)
+- Check that WebSocket endpoint `/ws/chat` is accessible
+
+### Need Help?
+
+If you need any additional information, environment keys, database access, please contact me.
