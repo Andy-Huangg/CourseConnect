@@ -129,8 +129,8 @@ function App() {
       {/* Header */}
       <Box
         sx={{
-          py: { xs: 1.5, sm: 2 },
-          px: { xs: 2, sm: 4 },
+          py: { xs: 1, sm: 2 },
+          px: { xs: 1.5, sm: 4 },
           display: "flex",
           justifyContent: "space-between",
           alignItems: "center",
@@ -140,25 +140,35 @@ function App() {
           top: 0,
           zIndex: 1000,
           backdropFilter: "blur(10px)",
+          minHeight: { xs: 60, sm: 70 },
           bgcolor:
             theme.palette.mode === "dark"
               ? "rgba(18, 18, 18, 0.8)"
               : "rgba(255, 255, 255, 0.8)",
         }}
       >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: { xs: 1.5, sm: 2 },
+            flex: 1,
+            minWidth: 0,
+          }}
+        >
           <Box
             sx={{
-              width: 40,
-              height: 40,
+              width: { xs: 32, sm: 40 },
+              height: { xs: 32, sm: 40 },
               borderRadius: "50%",
               background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
+              flexShrink: 0,
             }}
           >
-            <Forum sx={{ color: "white", fontSize: 24 }} />
+            <Forum sx={{ color: "white", fontSize: { xs: 20, sm: 24 } }} />
           </Box>
           <Typography
             variant="h5"
@@ -168,7 +178,10 @@ function App() {
               backgroundClip: "text",
               WebkitBackgroundClip: "text",
               WebkitTextFillColor: "transparent",
-              fontSize: { xs: "1.25rem", sm: "1.5rem" },
+              fontSize: { xs: "1.1rem", sm: "1.5rem" },
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
             }}
           >
             CourseConnect
@@ -178,8 +191,8 @@ function App() {
           sx={{
             display: "flex",
             alignItems: "center",
-            gap: { xs: 1, sm: 2 },
-            flexWrap: "wrap",
+            gap: { xs: 0.75, sm: 2 },
+            flexShrink: 0,
           }}
         >
           <ThemeToggle />
@@ -188,9 +201,13 @@ function App() {
               component={Link}
               to="/home"
               variant="contained"
-              size="medium"
+              size="small"
               sx={{
                 background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                minWidth: { xs: "auto", sm: "64px" },
+                px: { xs: 1.5, sm: 2 },
+                fontSize: { xs: "0.8rem", sm: "0.875rem" },
+                height: { xs: 32, sm: 36 },
                 "&:hover": {
                   background:
                     "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
@@ -200,15 +217,25 @@ function App() {
               Dashboard
             </Button>
           ) : (
-            <>
+            <Box
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: { xs: 0.5, sm: 2 },
+              }}
+            >
               <Button
                 component={Link}
                 to="/signup"
                 variant="contained"
-                size="medium"
+                size="small"
                 sx={{
                   background:
                     "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
+                  minWidth: { xs: "auto", sm: "64px" },
+                  px: { xs: 1.25, sm: 2 },
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                  height: { xs: 32, sm: 36 },
                   "&:hover": {
                     background:
                       "linear-gradient(135deg, #5a6fd8 0%, #6a4190 100%)",
@@ -221,12 +248,18 @@ function App() {
                 component={Link}
                 to="/login"
                 variant="outlined"
-                size="medium"
-                sx={{ borderColor: "primary.main" }}
+                size="small"
+                sx={{
+                  borderColor: "primary.main",
+                  minWidth: { xs: "auto", sm: "64px" },
+                  px: { xs: 1.25, sm: 2 },
+                  fontSize: { xs: "0.75rem", sm: "0.875rem" },
+                  height: { xs: 32, sm: 36 },
+                }}
               >
                 Login
               </Button>
-            </>
+            </Box>
           )}
         </Box>
       </Box>
@@ -237,7 +270,7 @@ function App() {
           flex: 1,
           display: "flex",
           alignItems: "center",
-          minHeight: { xs: "calc(100vh - 120px)", sm: "calc(100vh - 140px)" },
+          minHeight: { xs: "calc(100vh - 60px)", sm: "calc(100vh - 70px)" },
           background:
             "linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%)",
           position: "relative",
