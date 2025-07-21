@@ -57,7 +57,7 @@ function SortableItem<T>({
 
   const style = {
     transform: CSS.Transform.toString(transform),
-    transition,
+    transition: isDragging ? "none" : transition || "transform 200ms ease",
     opacity: isDragging ? 0.8 : 1,
     zIndex: isDragging ? 1000 : "auto",
   };
@@ -95,7 +95,7 @@ function SortableItem<T>({
           borderRadius: 1.5,
           mx: 1.5,
           mb: 0.5,
-          transition: "all 0.2s ease",
+          transition: "background-color 0.2s ease, color 0.2s ease",
           cursor: "pointer",
           pl: 1,
           display: "flex",
@@ -162,18 +162,18 @@ export default function DraggableList<T>({
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8, // Require 8px of movement before activating
+        distance: 5, // Reduced from 8px for more responsive dragging
       },
     }),
     useSensor(MouseSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: 5, // Reduced from 8px for more responsive dragging
       },
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 150, // Shorter delay for better responsiveness
-        tolerance: 8,
+        delay: 100, // Reduced from 150ms for better responsiveness
+        tolerance: 5, // Reduced from 8px
       },
     })
   );
