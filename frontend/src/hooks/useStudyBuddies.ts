@@ -1,5 +1,8 @@
 import { useState, useEffect, useCallback } from "react";
-import { useStudyBuddySocket, type StudyBuddyUpdateMessage } from "./useStudyBuddySocket";
+import {
+  useStudyBuddySocket,
+  type StudyBuddyUpdateMessage,
+} from "./useStudyBuddySocket";
 
 interface StudyBuddy {
   id: number;
@@ -73,13 +76,15 @@ export function useStudyBuddies() {
 
         // Enrich study buddies with course names
         const enrichedStudyBuddies = studyBuddiesData.map((sb: StudyBuddy) => {
-          let courseName = coursesData.find((course: Course) => course.id === sb.courseId)?.name;
-          
+          let courseName = coursesData.find(
+            (course: Course) => course.id === sb.courseId
+          )?.name;
+
           // Special handling for Global course
           if (!courseName && sb.courseId === 1) {
             courseName = "Global Chat";
           }
-          
+
           return {
             ...sb,
             courseName: courseName || "Unknown Course",
@@ -117,21 +122,23 @@ export function useStudyBuddies() {
   // Handle WebSocket updates for real-time study buddy changes
   const handleStudyBuddyUpdate = useCallback(
     (update: StudyBuddyUpdateMessage) => {
-      console.log("useStudyBuddies: Received WebSocket update:", update);
       const currentUserId = getCurrentUserId();
       if (!currentUserId) return;
 
       const isForCurrentUser = update.userId === parseInt(currentUserId);
-      const isCurrentUserBuddy = update.studyBuddy?.buddy?.id === parseInt(currentUserId);
+      const isCurrentUserBuddy =
+        update.studyBuddy?.buddy?.id === parseInt(currentUserId);
 
       if (isForCurrentUser || isCurrentUserBuddy) {
         // Update state based on the WebSocket message
         if (update.studyBuddy) {
           setStudyBuddies((prev) => {
             const existing = prev.find((sb) => sb.courseId === update.courseId);
-            
+
             // Find course name
-            let courseName = courses.find((c) => c.id === update.courseId)?.name || existing?.courseName;
+            let courseName =
+              courses.find((c) => c.id === update.courseId)?.name ||
+              existing?.courseName;
             if (!courseName && update.courseId === 1) {
               courseName = "Global Chat";
             }
@@ -141,7 +148,6 @@ export function useStudyBuddies() {
 
             if (existing) {
               // Update existing record
-              console.log("useStudyBuddies: Updating existing record for course", update.courseId);
               return prev.map((sb) =>
                 sb.courseId === update.courseId
                   ? {
@@ -154,7 +160,6 @@ export function useStudyBuddies() {
               );
             } else if (isForCurrentUser) {
               // Add new record for current user
-              console.log("useStudyBuddies: Adding new record for course", update.courseId);
               return [
                 ...prev,
                 {

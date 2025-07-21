@@ -105,18 +105,14 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
   // Handle study buddy WebSocket updates
   const handleStudyBuddyUpdate = useCallback(
     (update: StudyBuddyUpdateMessage) => {
-      console.log("StudyBuddy: Received WebSocket update:", update);
       const currentUserId = getCurrentUserId();
       if (!currentUserId) return;
 
       // Check if this update affects any course the user is enrolled in
       // Global course (ID=1) should always be considered relevant
-      const isRelevantCourse = update.courseId === 1 || enrolledCourses.some(
-        (course) => course.id === update.courseId
-      );
-
-      console.log("StudyBuddy: Is relevant course?", isRelevantCourse, "for courseId:", update.courseId);
-      console.log("StudyBuddy: Enrolled courses:", enrolledCourses.map(c => ({ id: c.id, name: c.name })));
+      const isRelevantCourse =
+        update.courseId === 1 ||
+        enrolledCourses.some((course) => course.id === update.courseId);
 
       if (isRelevantCourse) {
         // Update state directly based on the WebSocket message
@@ -125,31 +121,34 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
             // Check if this update is relevant to the current user
             // Either it's directly for them, or they're the buddy in the update
             const isForCurrentUser = update.userId === parseInt(currentUserId);
-            const isCurrentUserBuddy = update.studyBuddy?.buddy?.id === parseInt(currentUserId);
-            
+            const isCurrentUserBuddy =
+              update.studyBuddy?.buddy?.id === parseInt(currentUserId);
+
             if (!isForCurrentUser && !isCurrentUserBuddy) {
               return prev; // Not relevant to current user
             }
 
             const existing = prev.find((sb) => sb.courseId === update.courseId);
-            
+
             // Find the course name for this courseId - check enrolled courses first
-            const course = enrolledCourses.find((c) => c.id === update.courseId);
+            const course = enrolledCourses.find(
+              (c) => c.id === update.courseId
+            );
             let courseName = course?.name || existing?.courseName;
-            
+
             // Special handling for Global course (ID=1) if not found
             if (!courseName && update.courseId === 1) {
               courseName = "Global Chat";
             }
-            
+
             // Final fallback
             if (!courseName) {
               courseName = `Course ${update.courseId}`;
             }
-            
+
             if (existing) {
               // Update existing record
-              console.log("StudyBuddy: Updating existing study buddy record for course", update.courseId);
+
               return prev.map((sb) =>
                 sb.courseId === update.courseId
                   ? {
@@ -164,7 +163,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
             } else {
               // Add new record if it's for the current user
               if (isForCurrentUser) {
-                console.log("StudyBuddy: Adding new study buddy record for course", update.courseId);
                 return [
                   ...prev,
                   {
@@ -173,7 +171,6 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
                   },
                 ];
               }
-              console.log("StudyBuddy: Update not for current user, ignoring");
               return prev;
             }
           });
