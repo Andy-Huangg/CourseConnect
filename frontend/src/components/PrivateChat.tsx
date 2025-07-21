@@ -191,25 +191,68 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
   };
 
   return (
-    <Box sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
+    <Box
+      sx={{
+        height: "100%",
+        maxHeight: "100vh",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       {/* Header */}
-      <Paper sx={{ p: 2, display: "flex", alignItems: "center", gap: 2 }}>
-        <IconButton onClick={onBack}>
+      <Paper
+        sx={{
+          p: { xs: 1.5, md: 2 },
+          display: "flex",
+          alignItems: "center",
+          gap: { xs: 1.5, md: 2 },
+          flexShrink: 0,
+          borderRadius: 0,
+          boxShadow: "0 1px 0 rgba(0, 0, 0, 0.06)",
+        }}
+      >
+        <IconButton onClick={onBack} size="small">
           <ArrowBack />
         </IconButton>
-        <Avatar sx={{ width: 40, height: 40 }}>
+        <Avatar sx={{ width: { xs: 32, md: 40 }, height: { xs: 32, md: 40 } }}>
           {buddy.displayName.charAt(0).toUpperCase()}
         </Avatar>
-        <Box>
-          <Typography variant="h6">{buddy.displayName}</Typography>
-          <Typography variant="caption" color="text.secondary">
+        <Box sx={{ flex: 1, minWidth: 0 }}>
+          <Typography
+            variant="h6"
+            sx={{
+              fontSize: { xs: "1rem", md: "1.25rem" },
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {buddy.displayName}
+          </Typography>
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              fontSize: { xs: "0.7rem", md: "0.75rem" },
+            }}
+          >
             @{buddy.username}
           </Typography>
         </Box>
       </Paper>
 
       {/* Messages List */}
-      <Box sx={{ flex: 1, overflow: "auto", p: 1 }}>
+      <Box
+        sx={{
+          flex: 1,
+          overflow: "auto",
+          overflowX: "hidden",
+          p: { xs: 0.5, md: 1 },
+          minHeight: 0,
+          "-webkit-overflow-scrolling": "touch",
+        }}
+      >
         {error && (
           <Typography color="error" sx={{ textAlign: "center", p: 2 }}>
             {error}
@@ -232,14 +275,14 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
                 sx={{
                   display: "flex",
                   justifyContent: isOwnMessage ? "flex-end" : "flex-start",
-                  px: 1,
+                  px: { xs: 0.5, md: 1 },
                   py: 0.5,
                 }}
               >
                 <Paper
                   sx={{
-                    p: 1.5,
-                    maxWidth: "70%",
+                    p: { xs: 1, md: 1.5 },
+                    maxWidth: { xs: "85%", md: "70%" },
                     backgroundColor: isOwnMessage ? "primary.main" : "grey.100",
                     color: isOwnMessage
                       ? "primary.contrastText"
@@ -248,40 +291,72 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
                   }}
                 >
                   <Box
-                    sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}
+                    sx={{
+                      display: "flex",
+                      alignItems: "flex-start",
+                      gap: { xs: 0.5, md: 1 },
+                      flexDirection: {
+                        xs: isOwnMessage ? "column" : "row",
+                        sm: "row",
+                      },
+                    }}
                   >
-                    <Box sx={{ flex: 1 }}>
-                      <Typography variant="body2">{message.content}</Typography>
+                    <Box sx={{ flex: 1, minWidth: 0 }}>
+                      <Typography
+                        variant="body2"
+                        sx={{
+                          fontSize: { xs: "0.875rem", md: "1rem" },
+                          wordBreak: "break-word",
+                        }}
+                      >
+                        {message.content}
+                      </Typography>
                       <Box
                         sx={{
                           display: "flex",
                           alignItems: "center",
                           gap: 1,
                           mt: 0.5,
+                          flexWrap: "wrap",
                         }}
                       >
-                        <Typography variant="caption" sx={{ opacity: 0.8 }}>
+                        <Typography
+                          variant="caption"
+                          sx={{
+                            opacity: 0.8,
+                            fontSize: { xs: "0.65rem", md: "0.75rem" },
+                          }}
+                        >
                           {formatTimestamp(message.timestamp)}
                         </Typography>
                         {message.editedAt && (
                           <Chip
                             label="edited"
                             size="small"
-                            sx={{ height: 16, fontSize: "0.6rem" }}
+                            sx={{
+                              height: { xs: 14, md: 16 },
+                              fontSize: { xs: "0.55rem", md: "0.6rem" },
+                            }}
                           />
                         )}
                         {isOwnMessage && !message.isRead && (
                           <Chip
                             label="sent"
                             size="small"
-                            sx={{ height: 16, fontSize: "0.6rem" }}
+                            sx={{
+                              height: { xs: 14, md: 16 },
+                              fontSize: { xs: "0.55rem", md: "0.6rem" },
+                            }}
                           />
                         )}
                         {isOwnMessage && message.isRead && (
                           <Chip
                             label="read"
                             size="small"
-                            sx={{ height: 16, fontSize: "0.6rem" }}
+                            sx={{
+                              height: { xs: 14, md: 16 },
+                              fontSize: { xs: "0.55rem", md: "0.6rem" },
+                            }}
                           />
                         )}
                       </Box>
@@ -295,6 +370,8 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
                           color: "inherit",
                           opacity: 0.7,
                           "&:hover": { opacity: 1 },
+                          alignSelf: { xs: "flex-end", sm: "flex-start" },
+                          mt: { xs: 0.5, sm: 0 },
                         }}
                       >
                         <MoreVert fontSize="small" />
@@ -310,8 +387,15 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
       </Box>
 
       {/* Message Input */}
-      <Paper sx={{ p: 2 }}>
-        <Box sx={{ display: "flex", gap: 1 }}>
+      <Paper
+        sx={{
+          p: { xs: 1.5, md: 2 },
+          flexShrink: 0,
+          borderRadius: 0,
+          boxShadow: "0 -1px 0 rgba(0, 0, 0, 0.06)",
+        }}
+      >
+        <Box sx={{ display: "flex", gap: { xs: 0.5, md: 1 } }}>
           <TextField
             fullWidth
             placeholder="Type a message..."
@@ -319,16 +403,17 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
             onChange={handleInputChange}
             onKeyPress={handleKeyPress}
             multiline
-            maxRows={3} // Reduced from 4 for better performance
+            maxRows={3}
             variant="outlined"
             size="small"
             InputProps={{
-              autoComplete: "off", // Disable autocomplete for better performance
+              autoComplete: "off",
+              sx: { fontSize: { xs: "0.875rem", md: "1rem" } },
             }}
             sx={{
-              // Optimize for performance
               "& .MuiInputBase-input": {
-                resize: "none", // Prevent manual resizing
+                resize: "none",
+                minHeight: "20px",
               },
             }}
           />
@@ -336,6 +421,10 @@ export default function PrivateChat({ buddy, onBack }: PrivateChatProps) {
             color="primary"
             onClick={handleSendMessage}
             disabled={!inputMessage.trim()}
+            sx={{
+              alignSelf: "flex-end",
+              mb: 0.25,
+            }}
           >
             <Send />
           </IconButton>

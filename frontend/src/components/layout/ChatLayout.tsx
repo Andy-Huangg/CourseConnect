@@ -624,7 +624,15 @@ export default function ChatLayout() {
   };
 
   return (
-    <Box sx={{ display: "flex", height: "100vh", overflow: "hidden" }}>
+    <Box
+      sx={{
+        display: "flex",
+        height: "100vh",
+        maxHeight: "100vh",
+        overflow: "hidden",
+        position: "relative",
+      }}
+    >
       {/* Mobile App Bar */}
       {isMobile && (
         <AppBar
@@ -635,6 +643,7 @@ export default function ChatLayout() {
             color: muiTheme.palette.text.primary,
             boxShadow: "none",
             borderBottom: `1px solid ${muiTheme.palette.divider}`,
+            zIndex: muiTheme.zIndex.appBar,
           }}
         >
           <Toolbar>
@@ -689,9 +698,9 @@ export default function ChatLayout() {
       )}
 
       {/* Main content area */}
-      <MainContent>
+      <MainContent sx={{ minHeight: 0 }}>
         {isMobile && <Toolbar />}
-        <ContentArea>{renderContent()}</ContentArea>
+        <ContentArea sx={{ minHeight: 0 }}>{renderContent()}</ContentArea>
       </MainContent>
 
       {/* Settings Dialog */}

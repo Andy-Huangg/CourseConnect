@@ -315,7 +315,12 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
   // Show private chat if a buddy is selected
   if (chatBuddy) {
     return (
-      <Box sx={{ height: "calc(100vh - 120px)" }}>
+      <Box
+        sx={{
+          height: { xs: "calc(100vh - 64px)", md: "calc(100vh - 120px)" },
+          minHeight: 0,
+        }}
+      >
         <PrivateChat buddy={chatBuddy} onBack={() => setChatBuddy(null)} />
       </Box>
     );
