@@ -59,8 +59,13 @@ namespace backend.Repositories
                 // Try to find a match when opting back in
                 await TryCreateMatchAsync(existingRecord);
 
-                // Reload the entity to get the updated buddy information
-                await _context.Entry(existingRecord).ReloadAsync();
+                // Reload the entity to get the updated buddy information with all includes
+                await _context.Entry(existingRecord)
+                    .Reference(sb => sb.Course)
+                    .LoadAsync();
+                await _context.Entry(existingRecord)
+                    .Reference(sb => sb.Buddy)
+                    .LoadAsync();
 
                 // Broadcast opt-in update
                 await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_IN", existingRecord);
@@ -85,8 +90,13 @@ namespace backend.Repositories
                 // Try to find a match immediately
                 await TryCreateMatchAsync(studyBuddy);
 
-                // Reload the entity to get the updated buddy information
-                await _context.Entry(studyBuddy).ReloadAsync();
+                // Reload the entity to get the updated buddy information with all includes
+                await _context.Entry(studyBuddy)
+                    .Reference(sb => sb.Course)
+                    .LoadAsync();
+                await _context.Entry(studyBuddy)
+                    .Reference(sb => sb.Buddy)
+                    .LoadAsync();
 
                 // Broadcast opt-in update
                 await WebSocketHandler.BroadcastStudyBuddyUpdate(userId, courseId, "OPTED_IN", studyBuddy);
@@ -144,6 +154,8 @@ namespace backend.Repositories
             studyBuddy2.MatchedAt = matchedAt;
 
             await _context.SaveChangesAsync();
+
+            Console.WriteLine($"Study buddy match created between users {userId1} and {userId2} for course {courseId}");
 
             // Notify both users about the match via WebSocket
             await WebSocketHandler.BroadcastStudyBuddyUpdate(userId1, courseId, "MATCHED", studyBuddy1);

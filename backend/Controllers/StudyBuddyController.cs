@@ -71,7 +71,7 @@ namespace backend.Controllers
             {
                 Id = studyBuddy.Id,
                 CourseId = studyBuddy.CourseId,
-                CourseName = studyBuddy.Course.Name,
+                CourseName = studyBuddy.Course?.Name ?? "Unknown Course",
                 IsOptedIn = studyBuddy.IsOptedIn,
                 MatchedAt = studyBuddy.MatchedAt,
                 ContactPreference = studyBuddy.ContactPreference,
@@ -104,7 +104,7 @@ namespace backend.Controllers
                 {
                     Id = studyBuddy.Id,
                     CourseId = studyBuddy.CourseId,
-                    CourseName = studyBuddy.Course?.Name ?? "",
+                    CourseName = studyBuddy.Course?.Name ?? "Unknown Course",
                     IsOptedIn = studyBuddy.IsOptedIn,
                     MatchedAt = studyBuddy.MatchedAt,
                     ContactPreference = studyBuddy.ContactPreference,
