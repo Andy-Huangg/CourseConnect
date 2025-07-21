@@ -20,7 +20,8 @@ const cacheTimestamps = new Map<number, number>();
 export function useChatSocket(
   url: string | null,
   courseId: number | null,
-  isAnonymous: boolean = false
+  isAnonymous: boolean = false,
+  token?: string | null // Add token parameter
 ) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -36,46 +37,53 @@ export function useChatSocket(
   const cleanupTimeoutRef = useRef<number | null>(null);
 
   // Function to fetch chat history from API with caching
-  const fetchChatHistory = useCallback(async (courseId: number) => {
-    // Check cache first
-    const cachedHistory = chatHistoryCache.get(courseId);
-    const cacheTime = cacheTimestamps.get(courseId);
+  const fetchChatHistory = useCallback(
+    async (courseId: number) => {
+      // Check cache first
+      const cachedHistory = chatHistoryCache.get(courseId);
+      const cacheTime = cacheTimestamps.get(courseId);
 
-    if (cachedHistory && cacheTime && Date.now() - cacheTime < CACHE_DURATION) {
-      setMessages(cachedHistory);
-      return;
-    }
-
-    setIsLoading(true);
-    try {
-      const token = localStorage.getItem("jwt");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/Chat/${courseId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const chatHistory: ChatMessage[] = await response.json();
-
-        // Cache the results
-        chatHistoryCache.set(courseId, chatHistory);
-        cacheTimestamps.set(courseId, Date.now());
-
-        setMessages(chatHistory);
-      } else {
-        setMessages([]);
+      if (
+        cachedHistory &&
+        cacheTime &&
+        Date.now() - cacheTime < CACHE_DURATION
+      ) {
+        setMessages(cachedHistory);
+        return;
       }
-    } catch {
-      setMessages([]);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+
+      setIsLoading(true);
+      try {
+        const jwtToken = token || localStorage.getItem("jwt");
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/Chat/${courseId}`,
+          {
+            headers: {
+              Authorization: `Bearer ${jwtToken}`,
+              "Content-Type": "application/json",
+            },
+          }
+        );
+
+        if (response.ok) {
+          const chatHistory: ChatMessage[] = await response.json();
+
+          // Cache the results
+          chatHistoryCache.set(courseId, chatHistory);
+          cacheTimestamps.set(courseId, Date.now());
+
+          setMessages(chatHistory);
+        } else {
+          setMessages([]);
+        }
+      } catch {
+        setMessages([]);
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [token]
+  );
 
   // Function to safely close WebSocket connection
   const closeWebSocket = useCallback((setDisconnected = true) => {
@@ -159,10 +167,10 @@ export function useChatSocket(
     // Update the current course ID
     currentCourseIdRef.current = courseId;
 
-    const token = localStorage.getItem("jwt");
+    const jwtToken = token || localStorage.getItem("jwt");
     const urlWithToken = url.includes("token=")
       ? url
-      : `${url}${url.includes("?") ? "&" : "?"}token=${token}`;
+      : `${url}${url.includes("?") ? "&" : "?"}token=${jwtToken}`;
 
     // Add anonymous parameter to URL
     const finalUrl = `${urlWithToken}&anonymous=${isAnonymous}`;
@@ -339,7 +347,7 @@ export function useChatSocket(
       isConnectingRef.current = false;
       setConnectionState("disconnected");
     };
-  }, [url, courseId, isAnonymous, fetchChatHistory]);
+  }, [url, courseId, isAnonymous, fetchChatHistory, token]);
 
   useEffect(() => {
     // Clear messages and user count when course changes

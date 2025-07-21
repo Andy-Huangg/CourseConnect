@@ -135,6 +135,23 @@ export default function ChatLayout() {
   const { enrolledCourses } = useCourses();
   const { matchedBuddies } = useStudyBuddies();
 
+  // Memoized display name that updates when user changes
+  const displayName = useMemo(() => {
+    if (user) {
+      return user;
+    }
+
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) return user;
+
+      const payload = JSON.parse(atob(token.split(".")[1]));
+      return payload.displayName || payload.sub || user;
+    } catch {
+      return user;
+    }
+  }, [user]);
+
   // User preferences for order
   const { order: courseOrder, setOrder: setCourseOrder } = useUserPreferences({
     preferenceType: "courseOrder",
@@ -167,18 +184,6 @@ export default function ChatLayout() {
     });
   }, [matchedBuddies, buddyOrder]);
 
-  // Helper function to get display name from token
-  const getDisplayName = () => {
-    try {
-      const token = localStorage.getItem("jwt");
-      if (!token) return user;
-
-      const payload = JSON.parse(atob(token.split(".")[1]));
-      return payload.displayName || payload.sub || user;
-    } catch {
-      return user;
-    }
-  };
   const {
     checkCourseIndicators,
     checkPrivateIndicators,
@@ -513,11 +518,11 @@ export default function ChatLayout() {
             fontSize: "0.875rem",
           }}
         >
-          {getDisplayName()?.charAt(0).toUpperCase()}
+          {displayName?.charAt(0).toUpperCase()}
         </Avatar>
         <Box sx={{ flexGrow: 1, minWidth: 0 }}>
           <Typography variant="body2" fontWeight={600} noWrap>
-            {getDisplayName()}
+            {displayName}
           </Typography>
           <Typography variant="caption" color="text.secondary">
             Online

@@ -29,7 +29,7 @@ const isTokenValid = (token: string): boolean => {
 const getUserFromToken = (token: string): string | null => {
   try {
     const payload = JSON.parse(atob(token.split(".")[1]));
-    return payload.sub || null;
+    return payload.displayName || payload.sub || null;
   } catch {
     return null;
   }
@@ -243,6 +243,21 @@ const authSlice = createSlice({
         state.error = null;
       })
       .addCase(signup.rejected, (state, action) => {
+        state.isLoading = false;
+        state.error = action.payload as string;
+      })
+      // Update display name cases
+      .addCase(updateDisplayName.pending, (state) => {
+        state.isLoading = true;
+        state.error = null;
+      })
+      .addCase(updateDisplayName.fulfilled, (state, action) => {
+        state.isLoading = false;
+        state.token = action.payload.token;
+        state.user = getUserFromToken(action.payload.token);
+        state.error = null;
+      })
+      .addCase(updateDisplayName.rejected, (state, action) => {
         state.isLoading = false;
         state.error = action.payload as string;
       });

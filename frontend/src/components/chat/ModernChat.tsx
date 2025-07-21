@@ -19,7 +19,6 @@ import {
 import { styled, useTheme } from "@mui/material/styles";
 import SendIcon from "@mui/icons-material/Send";
 import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
-import AttachFileIcon from "@mui/icons-material/AttachFile";
 import TagIcon from "@mui/icons-material/Tag";
 import SearchIcon from "@mui/icons-material/Search";
 import EditIcon from "@mui/icons-material/Edit";
@@ -29,6 +28,7 @@ import { useCourses } from "../../hooks/useCourses";
 import { useChatSocket } from "../../hooks/useChatSocket";
 import { usePrivateMessages } from "../../hooks/usePrivateMessages";
 import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
+import { useAppSelector } from "../../app/hooks";
 
 // Styled components
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -70,7 +70,7 @@ const MessagesContainer = styled(Box)(({ theme }) => ({
   flex: 1,
   overflowY: "auto",
   overflowX: "hidden",
-  padding: theme.spacing(1, 0),
+  padding: theme.spacing(0.5, 0), // Reduced from 1 to 0.5
   minHeight: 0, // Allow flex shrinking
   "&::-webkit-scrollbar": {
     width: "8px",
@@ -86,13 +86,13 @@ const MessagesContainer = styled(Box)(({ theme }) => ({
     background: theme.palette.mode === "dark" ? "#36393f" : "#bbb",
   },
   [theme.breakpoints.down("md")]: {
-    padding: theme.spacing(0.5, 0),
+    padding: theme.spacing(0.25, 0), // Reduced from 0.5 to 0.25
   },
 }));
 
 const MessageGroup = styled(Paper)(({ theme }) => ({
-  margin: theme.spacing(0.5, 2),
-  padding: theme.spacing(1.5, 2),
+  margin: theme.spacing(0.25, 2), // Reduced from 0.5 to 0.25
+  padding: theme.spacing(1, 2), // Reduced from 1.5 to 1
   backgroundColor: "transparent",
   border: "none",
   boxShadow: "none",
@@ -116,8 +116,8 @@ const MessageGroup = styled(Paper)(({ theme }) => ({
         : "rgba(102, 51, 153, 0.05)",
   },
   [theme.breakpoints.down("md")]: {
-    margin: theme.spacing(0.25, 1),
-    padding: theme.spacing(1, 1.5),
+    margin: theme.spacing(0.125, 1), // Reduced from 0.25 to 0.125
+    padding: theme.spacing(0.75, 1.5), // Reduced from 1 to 0.75
   },
 }));
 
@@ -159,21 +159,22 @@ export default function ModernChat({
   } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { token } = useAppSelector((state) => state.auth);
 
-  const getCurrentUserId = () => {
+  const getCurrentUserId = useCallback(() => {
     try {
-      const token = localStorage.getItem("jwt");
-      if (!token) return null;
+      const jwtToken = token || localStorage.getItem("jwt");
+      if (!jwtToken) return null;
 
-      const payload = JSON.parse(atob(token.split(".")[1]));
+      const payload = JSON.parse(atob(jwtToken.split(".")[1]));
       return payload.userId; // Use the userId claim which contains the actual numeric user ID
     } catch {
       return null;
     }
-  };
+  }, [token]);
 
-  // Memoize expensive operations
-  const currentUserId = useMemo(() => getCurrentUserId(), []); // Memoize user ID calculation
+  // Memoize user ID calculation with token dependency
+  const currentUserId = useMemo(() => getCurrentUserId(), [getCurrentUserId]);
 
   const { enrolledCourses, isLoading: coursesLoading } = useCourses();
 
@@ -209,7 +210,7 @@ export default function ModernChat({
     isLoading: courseLoading,
     connectedUsers,
     connectionState,
-  } = useChatSocket(wsUrl, buddy ? null : selectedCourse, isAnonymous);
+  } = useChatSocket(wsUrl, buddy ? null : selectedCourse, isAnonymous, token);
 
   const {
     messages: privateMessages,
@@ -218,7 +219,7 @@ export default function ModernChat({
     deleteMessage: deletePrivateMessage,
     isLoading: privateLoading,
     markAsRead: markPrivateMessageAsRead,
-  } = usePrivateMessages(buddy?.id);
+  } = usePrivateMessages(buddy?.id, token);
 
   // Get the new message indicators context
   const { handleCourseMessageUpdate } = useNewMessageIndicatorsContext();
@@ -643,7 +644,7 @@ export default function ModernChat({
                     sx={{
                       display: "flex",
                       alignItems: "flex-start",
-                      gap: { xs: 1, md: 2 },
+                      gap: { xs: 0.75, md: 1.5 }, // Reduced gap for tighter layout
                     }}
                   >
                     {" "}
@@ -665,60 +666,56 @@ export default function ModernChat({
                       <Box
                         sx={{
                           display: "flex",
-                          alignItems: "baseline",
-                          justifyContent: "space-between",
+                          alignItems: "baseline", // Changed to baseline for better text alignment
                           gap: 1,
-                          mb: 0.5,
+                          mb: 0.125, // Keep consistent spacing
+                          minHeight: "auto", // Remove any height constraints
                         }}
                       >
-                        <Box
+                        <Typography
+                          variant="body2"
+                          fontWeight={600}
                           sx={{
-                            display: "flex",
-                            alignItems: "baseline",
-                            gap: 1,
-                            flexWrap: "wrap",
-                            flex: 1,
-                            minWidth: 0,
+                            color: isOwnMessage
+                              ? theme.palette.primary.main
+                              : "text.primary",
+                            fontSize: { xs: "0.8rem", md: "0.875rem" },
+                            lineHeight: 1.2, // Tighter line height
                           }}
                         >
-                          <Typography
-                            variant="body2"
-                            fontWeight={600}
-                            sx={{
-                              color: isOwnMessage
-                                ? theme.palette.primary.main
-                                : "text.primary",
-                              fontSize: { xs: "0.8rem", md: "0.875rem" },
-                            }}
-                          >
-                            {displayName}
-                          </Typography>
+                          {displayName}
+                        </Typography>
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{
+                            fontSize: { xs: "0.65rem", md: "0.75rem" },
+                            lineHeight: 1.2,
+                          }}
+                        >
+                          {new Date(msg.timestamp).toLocaleTimeString()}
+                        </Typography>
+                        {"editedAt" in msg && msg.editedAt && (
                           <Typography
                             variant="caption"
                             color="text.secondary"
-                            sx={{ fontSize: { xs: "0.65rem", md: "0.75rem" } }}
+                            sx={{
+                              fontStyle: "italic",
+                              fontSize: { xs: "0.65rem", md: "0.75rem" },
+                              lineHeight: 1.2,
+                            }}
                           >
-                            {new Date(msg.timestamp).toLocaleTimeString()}
-                          </Typography>{" "}
-                          {"editedAt" in msg && msg.editedAt && (
-                            <Typography
-                              variant="caption"
-                              color="text.secondary"
-                              sx={{
-                                fontStyle: "italic",
-                                fontSize: { xs: "0.65rem", md: "0.75rem" },
-                              }}
-                            >
-                              (edited)
-                            </Typography>
-                          )}
-                        </Box>
+                            (edited)
+                          </Typography>
+                        )}
+                        <Box sx={{ flex: 1 }} />
                         {isOwnMessage && (
                           <Box
                             sx={{
                               display: "flex",
                               gap: 0.25,
                               flexShrink: 0,
+                              alignItems: "center", // Center buttons with text baseline
                             }}
                           >
                             <Tooltip title="Edit message">
@@ -730,14 +727,16 @@ export default function ModernChat({
                                 sx={{
                                   color: "text.secondary",
                                   "&:hover": { color: "primary.main" },
-                                  minHeight: { xs: 24, md: 32 },
-                                  minWidth: { xs: 24, md: 32 },
-                                  p: { xs: 0.25, md: 0.5 },
+                                  width: 18, // Even smaller fixed size
+                                  height: 18,
+                                  p: 0, // Remove all padding
+                                  minWidth: "unset", // Override MUI defaults
+                                  minHeight: "unset",
                                 }}
                               >
                                 <EditIcon
                                   sx={{
-                                    fontSize: { xs: "0.875rem", md: "1rem" },
+                                    fontSize: "0.7rem", // Smaller icons
                                   }}
                                 />
                               </IconButton>
@@ -749,14 +748,16 @@ export default function ModernChat({
                                 sx={{
                                   color: "text.secondary",
                                   "&:hover": { color: "error.main" },
-                                  minHeight: { xs: 24, md: 32 },
-                                  minWidth: { xs: 24, md: 32 },
-                                  p: { xs: 0.25, md: 0.5 },
+                                  width: 18, // Even smaller fixed size
+                                  height: 18,
+                                  p: 0, // Remove all padding
+                                  minWidth: "unset", // Override MUI defaults
+                                  minHeight: "unset",
                                 }}
                               >
                                 <DeleteIcon
                                   sx={{
-                                    fontSize: { xs: "0.875rem", md: "1rem" },
+                                    fontSize: "0.7rem", // Smaller icons
                                   }}
                                 />
                               </IconButton>
@@ -769,6 +770,8 @@ export default function ModernChat({
                         sx={{
                           wordBreak: "break-word",
                           fontSize: { xs: "0.875rem", md: "1rem" },
+                          lineHeight: 1.4,
+                          mt: 0, // Ensure no top margin
                         }}
                       >
                         {msg.content}
@@ -842,12 +845,6 @@ export default function ModernChat({
               gap: 0.5,
             }}
           >
-            <IconButton
-              size="small"
-              sx={{ mb: 0.25, display: { xs: "none", sm: "inline-flex" } }}
-            >
-              <AttachFileIcon />
-            </IconButton>
             <TextField
               fullWidth
               variant="standard"

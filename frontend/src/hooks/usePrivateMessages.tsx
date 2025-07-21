@@ -16,47 +16,55 @@ export interface PrivateMessage {
   isRead: boolean;
 }
 
-export function usePrivateMessages(recipientId?: number) {
+export function usePrivateMessages(
+  recipientId?: number,
+  token?: string | null
+) {
   const [messages, setMessages] = useState<PrivateMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const getHeaders = () => {
-    const token = localStorage.getItem("jwt");
+  const getHeaders = useCallback(() => {
+    const jwtToken = token || localStorage.getItem("jwt");
     return {
-      Authorization: `Bearer ${token}`,
+      Authorization: `Bearer ${jwtToken}`,
       "Content-Type": "application/json",
     };
-  };
+  }, [token]);
 
-  const fetchMessages = useCallback(async (withUserId: number) => {
-    try {
-      setIsLoading(true);
-      setError(null);
+  const fetchMessages = useCallback(
+    async (withUserId: number) => {
+      try {
+        setIsLoading(true);
+        setError(null);
 
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/PrivateMessage/with/${withUserId}`,
-        {
-          headers: getHeaders(),
+        const response = await fetch(
+          `${
+            import.meta.env.VITE_API_URL
+          }/api/PrivateMessage/with/${withUserId}`,
+          {
+            headers: getHeaders(),
+          }
+        );
+
+        if (response.ok) {
+          const data = await response.json();
+          setMessages(data.reverse()); // Reverse to show chronological order
+        } else if (response.status === 403) {
+          setError("You can only message your study buddies");
+        } else {
+          throw new Error("Failed to fetch messages");
         }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setMessages(data.reverse()); // Reverse to show chronological order
-      } else if (response.status === 403) {
-        setError("You can only message your study buddies");
-      } else {
-        throw new Error("Failed to fetch messages");
+      } catch (error) {
+        setError(
+          error instanceof Error ? error.message : "Failed to fetch messages"
+        );
+      } finally {
+        setIsLoading(false);
       }
-    } catch (error) {
-      setError(
-        error instanceof Error ? error.message : "Failed to fetch messages"
-      );
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+    },
+    [getHeaders]
+  );
 
   const sendMessage = useCallback(
     async (recipientId: number, content: string) => {
@@ -92,7 +100,7 @@ export function usePrivateMessages(recipientId?: number) {
         };
       }
     },
-    []
+    [getHeaders]
   );
 
   const editMessage = useCallback(
@@ -121,43 +129,46 @@ export function usePrivateMessages(recipientId?: number) {
         };
       }
     },
-    []
+    [getHeaders]
   );
 
-  const deleteMessage = useCallback(async (messageId: number) => {
-    try {
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/PrivateMessage/${messageId}`,
-        {
-          method: "DELETE",
-          headers: getHeaders(),
-        }
-      );
+  const deleteMessage = useCallback(
+    async (messageId: number) => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_API_URL}/api/PrivateMessage/${messageId}`,
+          {
+            method: "DELETE",
+            headers: getHeaders(),
+          }
+        );
 
-      if (response.ok) {
-        // Don't update local state - WebSocket will handle real-time updates
-        return { success: true };
-      } else {
-        throw new Error("Failed to delete message");
+        if (response.ok) {
+          // Don't update local state - WebSocket will handle real-time updates
+          return { success: true };
+        } else {
+          throw new Error("Failed to delete message");
+        }
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error instanceof Error ? error.message : "Failed to delete message",
+        };
       }
-    } catch (error) {
-      return {
-        success: false,
-        error:
-          error instanceof Error ? error.message : "Failed to delete message",
-      };
-    }
-  }, []);
+    },
+    [getHeaders]
+  );
 
   // WebSocket integration for real-time updates
   const handlePrivateMessageUpdate = useCallback(
     (update: PrivateMessageUpdateData) => {
       const getCurrentUserId = () => {
         try {
-          const token = localStorage.getItem("jwt");
-          if (!token) return null;
+          const jwtToken = token || localStorage.getItem("jwt");
+          if (!jwtToken) return null;
 
-          const payload = JSON.parse(atob(token.split(".")[1]));
+          const payload = JSON.parse(atob(jwtToken.split(".")[1]));
           return parseInt(payload.userId); // Use the userId claim which contains the actual numeric user ID
         } catch {
           return null;
@@ -220,7 +231,7 @@ export function usePrivateMessages(recipientId?: number) {
           break;
       }
     },
-    [recipientId]
+    [recipientId, token]
   );
 
   // Only connect to WebSocket if we have a recipient
@@ -259,7 +270,7 @@ export function usePrivateMessages(recipientId?: number) {
         // Reduced logging to prevent console spam
       }
     },
-    [messages]
+    [messages, getHeaders]
   );
 
   // Auto-fetch messages when recipientId changes
