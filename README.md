@@ -14,14 +14,16 @@ By enabling real‑time course chat with anonymity and peer pairing, Course Co
   One private, anonymous pairing per course for focused collaboration.
 - **Anonymous Chat**  
   Public course rooms where identities can be hidden, encouraging open discussion.
+- **JWT Authentication**  
+  Secure user authentication with token-based authorization for API endpoints and real-time features.
 
 ## Advanced Features
 
 The following three advanced features are to be marked for assessment:
 
-- [x] **WebSockets** — Real‑time bidirectional communication for chat and study buddy updates
-- [x] **End‑to‑End Testing with Cypress** — Automated tests covering core user flows
-- [x] **Theme Switching** — Full light/dark mode support across the UI
+- [x] **WebSockets** - Real‑time bidirectional communication for chat and study buddy updates
+- [x] **End‑to‑End Testing with Cypress** - Automated tests covering core user flows
+- [x] **Theme Switching** - Full light/dark mode support across the UI
 
 ### Other Advanced Features
 
@@ -52,14 +54,7 @@ The project requires several environment variables and configuration files:
 
 #### Backend Configuration
 
-1. **Create a `.env` file** in the `backend/` directory with the following structure:
-
-   ```env
-   Jwt__Key=<YOUR_JWT_SECRET_KEY>
-   ConnectionStrings__AzureSqlConnection=<YOUR_DATABASE_CONNECTION_STRING>
-   ```
-
-2. **Update `backend/appsettings.json`** with your JWT configuration:
+1. **Update `backend/appsettings.Development.json`** with your JWT configuration:
 
    ```json
    {
@@ -69,16 +64,6 @@ The project requires several environment variables and configuration files:
        "Audience": "<YOUR_AUDIENCE>"
      }
    }
-   ```
-
-   **Generate a secure JWT key:**
-
-   ```bash
-   # Use Node.js to generate a 32-byte base64 key
-   node -e "console.log(require('crypto').randomBytes(32).toString('base64'))"
-
-   # Or use PowerShell on Windows
-   [Convert]::ToBase64String((1..32 | ForEach-Object { Get-Random -Maximum 256 }))
    ```
 
 #### Frontend Configuration
@@ -99,9 +84,11 @@ The project requires several environment variables and configuration files:
    }
    ```
 
-### Setup Options
+### Setup
 
-#### Option 1: Docker Setup
+Choose one of the following setup methods:
+
+#### Option 1: Docker Setup (Recommended)
 
 1. **Clone the repository:**
 
@@ -132,7 +119,9 @@ The project requires several environment variables and configuration files:
    cd CourseConnect
    ```
 
-2. **Setup Backend:**
+2. **Configure environment variables** (see Environment Configuration above)
+
+3. **Setup Backend:**
 
    ```bash
    cd backend
@@ -141,7 +130,7 @@ The project requires several environment variables and configuration files:
    dotnet run
    ```
 
-3. **Setup Frontend (in a new terminal):**
+4. **Setup Frontend (in a new terminal):**
 
    ```bash
    cd frontend
@@ -149,9 +138,9 @@ The project requires several environment variables and configuration files:
    npm run dev
    ```
 
-4. **Access the application:**
-   - Frontend: http://localhost:5173 (Vite dev server)
-   - Backend API: https://localhost:7152 or http://localhost:5054
+5. **Access the application:**
+   - Frontend: http://localhost:5173
+   - Backend API: https://localhost:7152
    - Backend Swagger UI: https://localhost:7152/swagger
 
 ### Testing
