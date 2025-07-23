@@ -13,9 +13,10 @@ import {
   Avatar,
   Divider,
 } from "@mui/material";
-import { Person, Edit } from "@mui/icons-material";
+import { Person, Edit, DeleteForever, Warning } from "@mui/icons-material";
 import { useAppSelector, useAppDispatch } from "../app/hooks";
-import { updateDisplayName } from "../auth/authSlice";
+import { updateDisplayName, logout } from "../auth/authSlice";
+import { useNavigate } from "react-router-dom";
 
 interface SettingsProps {
   open: boolean;
@@ -24,12 +25,17 @@ interface SettingsProps {
 
 export default function Settings({ open, onClose }: SettingsProps) {
   const dispatch = useAppDispatch();
+  const navigate = useNavigate();
   const { user, isLoading, error } = useAppSelector((state) => state.auth);
 
   const [displayName, setDisplayName] = useState("");
   const [originalDisplayName, setOriginalDisplayName] = useState("");
   const [isEditing, setIsEditing] = useState(false);
   const [updateSuccess, setUpdateSuccess] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState("");
+  const [isDeleting, setIsDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState("");
 
   // Get current user info from token
   const getCurrentUserInfo = () => {
@@ -82,7 +88,49 @@ export default function Settings({ open, onClose }: SettingsProps) {
 
   const handleClose = () => {
     handleCancel();
+    setShowDeleteConfirm(false);
+    setDeleteConfirmText("");
+    setDeleteError("");
     onClose();
+  };
+
+  const handleDeleteAccount = async () => {
+    setIsDeleting(true);
+    setDeleteError("");
+
+    try {
+      const token = localStorage.getItem("jwt");
+      if (!token) {
+        setDeleteError("No authentication token found");
+        return;
+      }
+
+      const response = await fetch(
+        `${import.meta.env.VITE_API_URL}/api/user/account`,
+        {
+          method: "DELETE",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        }
+      );
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.message || "Failed to delete account");
+      }
+
+      // Account deleted successfully - log out and redirect
+      dispatch(logout());
+      navigate("/");
+    } catch (error) {
+      setDeleteError(
+        error instanceof Error ? error.message : "Failed to delete account"
+      );
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const userInfo = getCurrentUserInfo();
@@ -194,10 +242,113 @@ export default function Settings({ open, onClose }: SettingsProps) {
             </Box>
           )}
         </Box>
+
+        <Divider sx={{ my: 3 }} />
+
+        {/* Danger Zone */}
+        <Box>
+          <Typography
+            variant="subtitle2"
+            color="error.main"
+            gutterBottom
+            fontWeight="bold"
+          >
+            Danger Zone
+          </Typography>
+
+          {showDeleteConfirm ? (
+            <Box
+              sx={{
+                p: 2,
+                border: 1,
+                borderColor: "error.main",
+                borderRadius: 1,
+                backgroundColor: "error.light",
+                color: "error.contrastText",
+              }}
+            >
+              <Typography variant="body2" gutterBottom>
+                <Warning sx={{ verticalAlign: "middle", mr: 1 }} />
+                This action cannot be undone. This will permanently delete your
+                account and all associated data.
+              </Typography>
+
+              <Typography variant="body2" sx={{ mt: 2, mb: 1 }}>
+                To confirm, type "<strong>DELETE</strong>" in the box below:
+              </Typography>
+
+              <TextField
+                fullWidth
+                value={deleteConfirmText}
+                onChange={(e) =>
+                  setDeleteConfirmText(e.target.value.toUpperCase())
+                }
+                placeholder="Type DELETE to confirm"
+                variant="outlined"
+                size="small"
+                sx={{ mb: 2, backgroundColor: "background.paper" }}
+              />
+
+              {deleteError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {deleteError}
+                </Alert>
+              )}
+
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button
+                  variant="contained"
+                  color="error"
+                  onClick={handleDeleteAccount}
+                  disabled={deleteConfirmText !== "DELETE" || isDeleting}
+                  startIcon={
+                    isDeleting ? (
+                      <CircularProgress size={16} />
+                    ) : (
+                      <DeleteForever />
+                    )
+                  }
+                  size="small"
+                >
+                  {isDeleting ? "Deleting..." : "Delete Account"}
+                </Button>
+                <Button
+                  variant="outlined"
+                  onClick={() => {
+                    setShowDeleteConfirm(false);
+                    setDeleteConfirmText("");
+                    setDeleteError("");
+                  }}
+                  disabled={isDeleting}
+                  size="small"
+                >
+                  Cancel
+                </Button>
+              </Box>
+            </Box>
+          ) : (
+            <Box>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                Once you delete your account, there is no going back. All your
+                data including courses, messages, and study buddy connections
+                will be permanently removed.
+              </Typography>
+              <Button
+                variant="outlined"
+                color="error"
+                onClick={() => setShowDeleteConfirm(true)}
+                startIcon={<DeleteForever />}
+                size="small"
+              >
+                Delete Account
+              </Button>
+            </Box>
+          )}
+        </Box>
       </DialogContent>
 
       <DialogActions sx={{ px: 3, pb: 3 }}>
-        <Button onClick={handleClose} variant="outlined">
+        <Button onClick={handleClose} variant="outlined" disabled={isDeleting}>
           Close
         </Button>
       </DialogActions>
