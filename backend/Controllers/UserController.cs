@@ -178,6 +178,31 @@ namespace backend.Controllers
                 return StatusCode(500, new { message = "Failed to update preference", error = ex.Message });
             }
         }
+
+        [HttpDelete("account")]
+        public async Task<IActionResult> DeleteAccount()
+        {
+            var userIdClaim = User.FindFirst("userId")?.Value;
+            if (userIdClaim == null || !int.TryParse(userIdClaim, out int userId))
+            {
+                return Unauthorized(new { message = "Invalid user token" });
+            }
+
+            try
+            {
+                var success = await _userRepository.DeleteUserAsync(userId);
+                if (!success)
+                {
+                    return NotFound(new { message = "User not found or could not be deleted" });
+                }
+
+                return Ok(new { message = "Account deleted successfully" });
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, new { message = "Failed to delete account", error = ex.Message });
+            }
+        }
     }
 
     public class UpdateDisplayNameRequest

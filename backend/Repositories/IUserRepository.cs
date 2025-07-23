@@ -8,5 +8,6 @@ namespace backend.Repositories
         Task<User?> GetByIdAsync(int id);
         Task<bool> UsernameExistsAsync(string username);
         Task<User?> UpdateDisplayNameAsync(int userId, string displayName);
+        Task<bool> DeleteUserAsync(int userId);
     }
 }
