@@ -22,7 +22,7 @@ import {
   VisibilityOff,
   Message,
 } from "@mui/icons-material";
-import ThemeToggle from "./components/ThemeToggle";
+import ThemeToggle from "./components/chat/components/ThemeToggle";
 import { useAppSelector } from "./app/hooks";
 import { useState, useEffect } from "react";
 

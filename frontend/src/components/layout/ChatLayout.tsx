@@ -28,7 +28,7 @@ import { useNavigate } from "react-router-dom";
 import { useAppSelector, useAppDispatch } from "../../app/hooks";
 import { logout } from "../../auth/authSlice";
 import { useTheme } from "../../theme/ThemeContext";
-import ThemeToggle from "../ThemeToggle";
+import ThemeToggle from "../chat/components/ThemeToggle";
 import CourseEnrollment from "../CourseEnrollment";
 import StudyBuddy from "../StudyBuddy";
 import ModernChat from "../chat/ModernChat";

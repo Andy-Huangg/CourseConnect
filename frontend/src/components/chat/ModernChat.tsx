@@ -1,34 +1,17 @@
-import { useState, useRef, useEffect, useMemo, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback } from "react";
+import { Box } from "@mui/material";
+import { styled } from "@mui/material/styles";
+import SchoolIcon from "@mui/icons-material/School";
 import {
-  Box,
-  Typography,
-  TextField,
-  IconButton,
-  Avatar,
-  Paper,
-  Chip,
-  Tooltip,
-  Switch,
-  FormControlLabel,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  Button,
-} from "@mui/material";
-import { styled, useTheme } from "@mui/material/styles";
-import SendIcon from "@mui/icons-material/Send";
-import EmojiEmotionsIcon from "@mui/icons-material/EmojiEmotions";
-import TagIcon from "@mui/icons-material/Tag";
-import SearchIcon from "@mui/icons-material/Search";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import FiberManualRecordIcon from "@mui/icons-material/FiberManualRecord";
-import { useCourses } from "../../hooks/useCourses";
-import { useChatSocket } from "../../hooks/useChatSocket";
-import { usePrivateMessages } from "../../hooks/usePrivateMessages";
-import { useNewMessageIndicatorsContext } from "../../hooks/useNewMessageIndicatorsContext";
-import { useAppSelector } from "../../app/hooks";
+  ChatHeader,
+  MessageList,
+  MessageInput,
+  EditMessageDialog,
+  useChatLogic,
+} from "./index";
+import LoadingState from "../ui/LoadingState";
+import EmptyState from "../ui/EmptyState";
+import type { ChatProps } from "./types";
 
 // Styled components
 const ChatContainer = styled(Box)(({ theme }) => ({
@@ -45,347 +28,62 @@ const ChatContainer = styled(Box)(({ theme }) => ({
   },
 }));
 
-const ChatHeader = styled(Box)(({ theme }) => ({
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: theme.spacing(1.5, 2),
-  borderBottom: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.paper,
-  minHeight: 64,
-  maxHeight: 64,
-  flexShrink: 0,
-  boxShadow:
-    theme.palette.mode === "dark"
-      ? "0 1px 0 rgba(4, 4, 5, 0.2)"
-      : "0 1px 0 rgba(0, 0, 0, 0.06)",
-  [theme.breakpoints.down("md")]: {
-    padding: theme.spacing(1, 1.5),
-    minHeight: 56,
-    maxHeight: 56,
-  },
-}));
-
-const MessagesContainer = styled(Box)(({ theme }) => ({
-  flex: 1,
-  overflowY: "auto",
-  overflowX: "hidden",
-  padding: theme.spacing(0.5, 0), // Reduced from 1 to 0.5
-  minHeight: 0, // Allow flex shrinking
-  "&::-webkit-scrollbar": {
-    width: "8px",
-  },
-  "&::-webkit-scrollbar-track": {
-    background: "transparent",
-  },
-  "&::-webkit-scrollbar-thumb": {
-    background: theme.palette.mode === "dark" ? "#202225" : "#ddd",
-    borderRadius: "4px",
-  },
-  "&::-webkit-scrollbar-thumb:hover": {
-    background: theme.palette.mode === "dark" ? "#36393f" : "#bbb",
-  },
-  [theme.breakpoints.down("md")]: {
-    padding: theme.spacing(0.25, 0), // Reduced from 0.5 to 0.25
-  },
-}));
-
-const MessageGroup = styled(Paper)(({ theme }) => ({
-  margin: theme.spacing(0.25, 2), // Reduced from 0.5 to 0.25
-  padding: theme.spacing(1, 2), // Reduced from 1.5 to 1
-  backgroundColor: "transparent",
-  border: "none",
-  boxShadow: "none",
-  borderRadius: 0,
-  transition: "background-color 0.1s ease",
-  "&:hover": {
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "rgba(4, 4, 5, 0.07)"
-        : "rgba(6, 6, 7, 0.02)",
-    "& .message-actions": {
-      opacity: 1,
-    },
-  },
-  borderLeft: "4px solid transparent",
-  "&.own-message": {
-    borderLeftColor: theme.palette.primary.main,
-    backgroundColor:
-      theme.palette.mode === "dark"
-        ? "rgba(153, 102, 204, 0.05)"
-        : "rgba(102, 51, 153, 0.05)",
-  },
-  [theme.breakpoints.down("md")]: {
-    margin: theme.spacing(0.125, 1), // Reduced from 0.25 to 0.125
-    padding: theme.spacing(0.75, 1.5), // Reduced from 1 to 0.75
-  },
-}));
-
-const MessageInput = styled(Box)(({ theme }) => ({
-  padding: theme.spacing(2),
-  borderTop: `1px solid ${theme.palette.divider}`,
-  backgroundColor: theme.palette.background.paper,
-  flexShrink: 0,
-  [theme.breakpoints.down("md")]: {
-    padding: theme.spacing(1.5, 1),
-    paddingBottom: theme.spacing(1.5), // Extra padding for mobile keyboards
-  },
-}));
-
-interface ModernChatProps {
-  wsBase: string;
-  selectedCourse?: number;
-  buddy?: { id: number; username: string; displayName: string };
-  markCourseMessageAsRead?: (messageId: number) => Promise<void>;
-}
-
 export default function ModernChat({
   wsBase,
   selectedCourse: propSelectedCourse,
   buddy,
   markCourseMessageAsRead,
-}: ModernChatProps) {
-  const theme = useTheme();
+}: ChatProps) {
   const [input, setInput] = useState("");
-  const [selectedCourse, setSelectedCourse] = useState<number | null>(
-    propSelectedCourse || null
-  );
-  const [isAnonymous, setIsAnonymous] = useState(false);
-  const [preferencesLoaded, setPreferencesLoaded] = useState(false);
-  const [anonymousName, setAnonymousName] = useState<string>("");
   const [editingMessage, setEditingMessage] = useState<{
     id: number;
     content: string;
   } | null>(null);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const { token } = useAppSelector((state) => state.auth);
 
-  const getCurrentUserId = useCallback(() => {
-    try {
-      const jwtToken = token || localStorage.getItem("jwt");
-      if (!jwtToken) return null;
-
-      const payload = JSON.parse(atob(jwtToken.split(".")[1]));
-      return payload.userId; // Use the userId claim which contains the actual numeric user ID
-    } catch {
-      return null;
-    }
-  }, [token]);
-
-  // Memoize user ID calculation with token dependency
-  const currentUserId = useMemo(() => getCurrentUserId(), [getCurrentUserId]);
-
-  const { enrolledCourses, isLoading: coursesLoading } = useCourses();
-
-  // Memoize the courses to prevent unnecessary re-renders
-  const courses = useMemo(() => enrolledCourses, [enrolledCourses]);
-
-  // Memoize current course lookup
-  const currentCourse = useMemo(
-    () => enrolledCourses.find((course) => course.id === selectedCourse),
-    [enrolledCourses, selectedCourse]
-  );
-
-  // Sync with prop changes
-  useEffect(() => {
-    if (propSelectedCourse && propSelectedCourse !== selectedCourse) {
-      setSelectedCourse(propSelectedCourse);
-    }
-  }, [propSelectedCourse, selectedCourse]);
-
-  // Only connect to WebSocket after preferences are loaded
-  const wsUrl = buddy
-    ? null // For private messages, we'll use usePrivateMessages hook instead
-    : selectedCourse && preferencesLoaded
-    ? `${wsBase}?courseId=${selectedCourse}` // For course chat
-    : null;
-
-  // Use different hooks for course chat vs private messages
+  // Use our custom hook for chat logic
   const {
-    messages: courseMessages,
-    sendMessage: sendCourseMessage,
-    editMessage: editCourseMessage,
-    deleteMessage: deleteCourseMessage,
-    isLoading: courseLoading,
+    currentCourse,
+    courses,
+    isAnonymous,
+    anonymousName,
+    preferencesLoaded,
+    coursesLoading,
+    currentUserId,
+    messages,
+    isLoading,
     connectedUsers,
     connectionState,
-  } = useChatSocket(wsUrl, buddy ? null : selectedCourse, isAnonymous, token);
-
-  const {
-    messages: privateMessages,
-    sendMessage: sendPrivateMessage,
-    editMessage: editPrivateMessage,
-    deleteMessage: deletePrivateMessage,
-    isLoading: privateLoading,
-    markAsRead: markPrivateMessageAsRead,
-  } = usePrivateMessages(buddy?.id, token);
-
-  // Get the new message indicators context
-  const { handleCourseMessageUpdate } = useNewMessageIndicatorsContext();
-
-  // Track previous message count to detect new messages
-  const previousMessageCountRef = useRef(0);
-
-  // Effect to detect new course messages and update indicators - Optimized
-  useEffect(() => {
-    if (!buddy && selectedCourse && courseMessages.length > 0) {
-      const currentMessageCount = courseMessages.length;
-      const previousCount = previousMessageCountRef.current;
-
-      // If we have more messages than before, a new message was received
-      if (currentMessageCount > previousCount && previousCount > 0) {
-        const newMessage = courseMessages[courseMessages.length - 1];
-        // Call the indicator update function
-        handleCourseMessageUpdate(selectedCourse, newMessage.senderId);
-      }
-
-      previousMessageCountRef.current = currentMessageCount;
-    }
-  }, [courseMessages, buddy, selectedCourse, handleCourseMessageUpdate]);
-
-  // Use the appropriate data based on whether we're in buddy chat or course chat
-  const messages = buddy ? privateMessages : courseMessages;
-  const isLoading = buddy ? privateLoading : courseLoading;
-  const sendMessage = useMemo(
-    () =>
-      buddy
-        ? (content: string) => sendPrivateMessage(buddy.id, content)
-        : sendCourseMessage,
-    [buddy, sendPrivateMessage, sendCourseMessage]
-  );
-  const editMessage = buddy ? editPrivateMessage : editCourseMessage;
-  const deleteMessage = buddy ? deletePrivateMessage : deleteCourseMessage;
-
-  // Fetch anonymous name for the current course
-  const fetchAnonymousName = async (courseId: number) => {
-    try {
-      const token = localStorage.getItem("jwt");
-      const response = await fetch(
-        `${import.meta.env.VITE_API_URL}/api/Chat/anonymous-name/${courseId}`,
-        {
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (response.ok) {
-        const data = await response.json();
-        setAnonymousName(data.anonymousName);
-      } else {
-        setAnonymousName("");
-      }
-    } catch {
-      setAnonymousName("");
-    }
-  };
-
-  // Load anonymous mode preference for the selected course
-  useEffect(() => {
-    if (selectedCourse) {
-      const savedAnonymousMode = localStorage.getItem(
-        `anonymousMode_${selectedCourse}`
-      );
-      const newAnonymousMode = savedAnonymousMode === "true";
-
-      setIsAnonymous(newAnonymousMode);
-      setPreferencesLoaded(true);
-      fetchAnonymousName(selectedCourse);
-    } else {
-      setPreferencesLoaded(false);
-      setAnonymousName("");
-    }
-  }, [selectedCourse]);
-
-  // Save anonymous mode preference when it changes
-  const handleAnonymousModeChange = (checked: boolean) => {
-    setIsAnonymous(checked);
-    if (selectedCourse) {
-      localStorage.setItem(
-        `anonymousMode_${selectedCourse}`,
-        checked.toString()
-      );
-    }
-  };
-
-  // Set default course when courses load (only once)
-  useEffect(() => {
-    if (!selectedCourse && courses.length > 0) {
-      const defaultCourse = courses[0].id;
-      setSelectedCourse(defaultCourse);
-    }
-  }, [selectedCourse, courses]);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "auto" }); // Changed from "smooth" to "auto" for better performance
-  };
-
-  // Optimized: Only scroll when new message is actually added, not on every render
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages.length]); // Changed dependency to messages.length instead of messages array
-
-  // Mark messages as read when they're displayed (optimized with useMemo)
-  const unreadMessageIds = useMemo(() => {
-    if (messages.length === 0 || !currentUserId) return [];
-
-    if (buddy) {
-      return messages
-        .filter(
-          (msg) =>
-            msg.senderId !== currentUserId.toString() &&
-            "isRead" in msg &&
-            !msg.isRead
-        )
-        .slice(-3) // Only last 3 unread messages
-        .map((msg) => msg.id);
-    } else {
-      return messages
-        .filter((msg) => msg.senderId !== currentUserId.toString())
-        .slice(-5) // Only last 5 unread messages
-        .map((msg) => msg.id);
-    }
-  }, [messages, currentUserId, buddy]); // Include messages since we filter the array
-
-  useEffect(() => {
-    if (unreadMessageIds.length === 0) return;
-
-    const markMessagesAsReadDebounced = async () => {
-      if (buddy && markPrivateMessageAsRead) {
-        // Mark private messages as read
-        for (const msgId of unreadMessageIds) {
-          try {
-            await markPrivateMessageAsRead(msgId);
-          } catch {
-            // Mark as read failed, ignore
-          }
-        }
-      } else if (markCourseMessageAsRead && selectedCourse) {
-        // Mark course messages as read
-        unreadMessageIds.forEach((msgId) => {
-          markCourseMessageAsRead(msgId).catch(() => {});
-        });
-      }
-    };
-
-    // Debounce the marking to avoid excessive calls
-    const timeoutId = setTimeout(markMessagesAsReadDebounced, 3000); // Increased to 3 seconds
-
-    return () => clearTimeout(timeoutId);
-  }, [
-    unreadMessageIds, // Include unreadMessageIds since we iterate over it
+    sendMessage,
+    editMessage,
+    deleteMessage,
+    handleAnonymousModeChange,
+  } = useChatLogic({
+    wsBase,
+    selectedCourse: propSelectedCourse,
     buddy,
-    markPrivateMessageAsRead,
     markCourseMessageAsRead,
-    selectedCourse,
-  ]);
+  });
 
+  // Scroll to bottom when new messages arrive
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "auto" });
+  }, [messages.length]);
+
+  // Handle sending messages
   const handleSendMessage = useCallback(async () => {
     if (input.trim()) {
+      // Check connection for course chat
+      if (!buddy && connectionState !== "connected") {
+        alert(
+          "Unable to send message: Chat is not connected. Please wait for connection to be restored."
+        );
+        return;
+      }
+
       if (buddy) {
-        // For private messages, handle the async result
+        // For private messages
         const result = await (
           sendMessage as (
             content: string
@@ -397,7 +95,7 @@ export default function ModernChat({
           alert(result?.error || "Failed to send message");
         }
       } else {
-        // For course messages, handle the synchronous result
+        // For course messages
         const result = (
           sendMessage as (content: string) => {
             success: boolean;
@@ -411,16 +109,14 @@ export default function ModernChat({
         }
       }
     }
-  }, [input, buddy, sendMessage]);
+  }, [input, buddy, sendMessage, connectionState]);
 
-  // Optimize input handling with useCallback
-  const handleInputChange = useCallback(
-    (e: React.ChangeEvent<HTMLInputElement>) => {
-      setInput(e.target.value);
-    },
-    []
-  );
+  // Handle input changes
+  const handleInputChange = useCallback((value: string) => {
+    setInput(value);
+  }, []);
 
+  // Handle key press
   const handleKeyPress = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter" && !e.shiftKey) {
@@ -429,80 +125,59 @@ export default function ModernChat({
       }
     },
     [handleSendMessage]
-  ); // Include handleSendMessage since we call it
+  );
 
+  // Handle edit message
   const handleEditMessage = (messageId: number, currentContent: string) => {
     setEditingMessage({ id: messageId, content: currentContent });
     setIsEditDialogOpen(true);
   };
 
-  const handleSaveEdit = async () => {
-    if (editingMessage) {
-      const result = await editMessage(
-        editingMessage.id,
-        editingMessage.content
-      );
-      if (result.success) {
-        setIsEditDialogOpen(false);
-        setEditingMessage(null);
-      } else {
-        alert(result.error || "Failed to edit message");
-      }
+  // Handle save edit
+  const handleSaveEdit = async (messageId: number, content: string) => {
+    const result = await editMessage(messageId, content);
+    if (!result.success) {
+      throw new Error(result.error || "Failed to edit message");
     }
   };
 
+  // Handle delete message
   const handleDeleteMessage = async (messageId: number) => {
-    if (window.confirm("Are you sure you want to delete this message?")) {
-      const result = await deleteMessage(messageId);
-      if (!result.success) {
-        alert(result.error || "Failed to delete message");
-      }
+    const result = await deleteMessage(messageId);
+    if (!result.success) {
+      alert(result.error || "Failed to delete message");
     }
   };
 
-  // Show loading state while courses are being fetched or preferences are loading
+  // Generate placeholder text
+  const getPlaceholder = () => {
+    if (buddy) {
+      return `Message ${buddy.displayName}`;
+    }
+    return connectionState === "connected"
+      ? `Message ${currentCourse?.name || "course"}`
+      : "Connecting to chat...";
+  };
+
+  // Show loading state
   if (coursesLoading || !preferencesLoaded) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          color: "text.secondary",
-        }}
-      >
-        <Typography>
-          {coursesLoading
-            ? "Loading courses..."
-            : "Loading chat preferences..."}
-        </Typography>
-      </Box>
+      <LoadingState
+        message={
+          coursesLoading ? "Loading courses..." : "Loading chat preferences..."
+        }
+      />
     );
   }
 
+  // Show no courses state
   if (courses.length === 0) {
     return (
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          height: "100%",
-          textAlign: "center",
-          p: 4,
-        }}
-      >
-        <Box>
-          <Typography variant="h6" color="text.secondary" gutterBottom>
-            No Enrolled Courses
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            You haven't enrolled in any courses yet. Go to the "My Courses" tab
-            to select courses and join the conversation!
-          </Typography>
-        </Box>
-      </Box>
+      <EmptyState
+        icon={<SchoolIcon />}
+        title="No Enrolled Courses"
+        description="You haven't enrolled in any courses yet. Go to the My Courses tab to select courses and join the conversation!"
+      />
     );
   }
 
@@ -511,425 +186,50 @@ export default function ModernChat({
       {/* Main Chat Area */}
       <ChatContainer sx={{ flex: 1, minWidth: 0 }}>
         {/* Chat Header */}
-        <ChatHeader>
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: { xs: 1, md: 2 },
-              flex: 1,
-              minWidth: 0,
-            }}
-          >
-            <TagIcon sx={{ color: "text.secondary", flexShrink: 0 }} />
-            <Box sx={{ flex: 1, minWidth: 0 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <Typography
-                  variant="h6"
-                  fontWeight={600}
-                  sx={{
-                    fontSize: { xs: "1rem", md: "1.25rem" },
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                    whiteSpace: "nowrap",
-                  }}
-                >
-                  {buddy
-                    ? `${buddy.displayName}`
-                    : currentCourse?.name || "Select a Course"}
-                </Typography>
-                {!buddy && (
-                  <FiberManualRecordIcon
-                    sx={{
-                      fontSize: 8,
-                      flexShrink: 0,
-                      color:
-                        connectionState === "connected" ? "#4caf50" : "#ff9800",
-                    }}
-                  />
-                )}
-              </Box>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{
-                  display: "block",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                  whiteSpace: "nowrap",
-                  fontSize: { xs: "0.7rem", md: "0.75rem" },
-                }}
-              >
-                {buddy
-                  ? "Private Messages"
-                  : `${messages.length} messages • ${connectedUsers} ${
-                      connectedUsers === 1 ? "user" : "users"
-                    } online`}
-                {!buddy && connectionState !== "connected" && (
-                  <>
-                    {" "}
-                    •{" "}
-                    <span
-                      style={{
-                        color: "#ff9800",
-                      }}
-                    >
-                      Connecting...
-                    </span>
-                  </>
-                )}
-              </Typography>
-            </Box>
-          </Box>
-
-          <Box
-            sx={{
-              display: "flex",
-              alignItems: "center",
-              gap: 0.5,
-              flexShrink: 0,
-            }}
-          >
-            <Tooltip title="Search Messages">
-              <IconButton size="small">
-                <SearchIcon />
-              </IconButton>
-            </Tooltip>
-          </Box>
-        </ChatHeader>
+        <ChatHeader
+          buddy={buddy}
+          currentCourse={currentCourse}
+          connectionState={connectionState}
+          messagesCount={messages.length}
+          connectedUsers={connectedUsers}
+        />
 
         {/* Messages Area */}
-        <MessagesContainer>
-          {" "}
-          {isLoading ? (
-            <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
-              Loading chat history...
-            </Box>
-          ) : messages.length === 0 ? (
-            <Box sx={{ p: 2, textAlign: "center", color: "text.secondary" }}>
-              No messages yet. Start the conversation!
-            </Box>
-          ) : (
-            messages.map((msg) => {
-              const isOwnMessage =
-                String(msg.senderId) === String(currentUserId);
-              const displayName =
-                "displayName" in msg ? msg.displayName : msg.senderName;
-              return (
-                <MessageGroup
-                  key={msg.id}
-                  className={isOwnMessage ? "own-message" : ""}
-                  sx={{
-                    backgroundColor: isOwnMessage
-                      ? theme.palette.mode === "dark"
-                        ? "rgba(102, 51, 153, 0.05)"
-                        : "rgba(102, 51, 153, 0.03)"
-                      : "transparent",
-                    borderLeft: isOwnMessage
-                      ? `3px solid ${theme.palette.primary.main}`
-                      : "none",
-                    ml: isOwnMessage ? { xs: 0.5, md: 1.5 } : { xs: 1, md: 2 },
-                    "&:hover": {
-                      backgroundColor: isOwnMessage
-                        ? theme.palette.mode === "dark"
-                          ? "rgba(102, 51, 153, 0.08)"
-                          : "rgba(102, 51, 153, 0.05)"
-                        : theme.palette.mode === "dark"
-                        ? "rgba(4, 4, 5, 0.07)"
-                        : "rgba(6, 6, 7, 0.02)",
-                    },
-                  }}
-                >
-                  <Box
-                    sx={{
-                      display: "flex",
-                      alignItems: "flex-start",
-                      gap: { xs: 0.75, md: 1.5 }, // Reduced gap for tighter layout
-                    }}
-                  >
-                    {" "}
-                    <Avatar
-                      sx={{
-                        width: { xs: 32, md: 40 },
-                        height: { xs: 32, md: 40 },
-                        backgroundColor: isOwnMessage
-                          ? theme.palette.primary.main
-                          : theme.palette.secondary.main,
-                        fontSize: { xs: "0.75rem", md: "0.875rem" },
-                        fontWeight: 600,
-                        flexShrink: 0,
-                      }}
-                    >
-                      {displayName?.charAt(0).toUpperCase() || "?"}
-                    </Avatar>
-                    <Box sx={{ flex: 1, minWidth: 0 }}>
-                      <Box
-                        sx={{
-                          display: "flex",
-                          alignItems: "baseline", // Changed to baseline for better text alignment
-                          gap: 1,
-                          mb: 0.125, // Keep consistent spacing
-                          minHeight: "auto", // Remove any height constraints
-                        }}
-                      >
-                        <Typography
-                          variant="body2"
-                          fontWeight={600}
-                          sx={{
-                            color: isOwnMessage
-                              ? theme.palette.primary.main
-                              : "text.primary",
-                            fontSize: { xs: "0.8rem", md: "0.875rem" },
-                            lineHeight: 1.2, // Tighter line height
-                          }}
-                        >
-                          {displayName}
-                        </Typography>
-                        <Typography
-                          variant="caption"
-                          color="text.secondary"
-                          sx={{
-                            fontSize: { xs: "0.65rem", md: "0.75rem" },
-                            lineHeight: 1.2,
-                          }}
-                        >
-                          {new Date(msg.timestamp).toLocaleTimeString()}
-                        </Typography>
-                        {"editedAt" in msg && msg.editedAt && (
-                          <Typography
-                            variant="caption"
-                            color="text.secondary"
-                            sx={{
-                              fontStyle: "italic",
-                              fontSize: { xs: "0.65rem", md: "0.75rem" },
-                              lineHeight: 1.2,
-                            }}
-                          >
-                            (edited)
-                          </Typography>
-                        )}
-                        <Box sx={{ flex: 1 }} />
-                        {isOwnMessage && (
-                          <Box
-                            sx={{
-                              display: "flex",
-                              gap: 0.25,
-                              flexShrink: 0,
-                              alignItems: "center", // Center buttons with text baseline
-                            }}
-                          >
-                            <Tooltip title="Edit message">
-                              <IconButton
-                                size="small"
-                                onClick={() =>
-                                  handleEditMessage(msg.id, msg.content)
-                                }
-                                sx={{
-                                  color: "text.secondary",
-                                  "&:hover": { color: "primary.main" },
-                                  width: 18, // Even smaller fixed size
-                                  height: 18,
-                                  p: 0, // Remove all padding
-                                  minWidth: "unset", // Override MUI defaults
-                                  minHeight: "unset",
-                                }}
-                              >
-                                <EditIcon
-                                  sx={{
-                                    fontSize: "0.7rem", // Smaller icons
-                                  }}
-                                />
-                              </IconButton>
-                            </Tooltip>
-                            <Tooltip title="Delete message">
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteMessage(msg.id)}
-                                sx={{
-                                  color: "text.secondary",
-                                  "&:hover": { color: "error.main" },
-                                  width: 18, // Even smaller fixed size
-                                  height: 18,
-                                  p: 0, // Remove all padding
-                                  minWidth: "unset", // Override MUI defaults
-                                  minHeight: "unset",
-                                }}
-                              >
-                                <DeleteIcon
-                                  sx={{
-                                    fontSize: "0.7rem", // Smaller icons
-                                  }}
-                                />
-                              </IconButton>
-                            </Tooltip>
-                          </Box>
-                        )}
-                      </Box>
-                      <Typography
-                        variant="body1"
-                        sx={{
-                          wordBreak: "break-word",
-                          fontSize: { xs: "0.875rem", md: "1rem" },
-                          lineHeight: 1.4,
-                          mt: 0, // Ensure no top margin
-                        }}
-                      >
-                        {msg.content}
-                      </Typography>
-                    </Box>
-                  </Box>
-                </MessageGroup>
-              );
-            })
-          )}
-          <div ref={messagesEndRef} />
-        </MessagesContainer>
+        <MessageList
+          ref={messagesEndRef}
+          messages={messages}
+          currentUserId={currentUserId}
+          isLoading={isLoading}
+          onEditMessage={handleEditMessage}
+          onDeleteMessage={handleDeleteMessage}
+        />
 
         {/* Message Input */}
-        <MessageInput>
-          {!buddy && (
-            <Box
-              sx={{
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "space-between",
-                px: { xs: 0.5, md: 1 },
-                py: 0.5,
-                mb: 1,
-                borderBottom: `1px solid ${theme.palette.divider}`,
-                backgroundColor: theme.palette.background.paper,
-                flexWrap: { xs: "wrap", sm: "nowrap" },
-                gap: 1,
-              }}
-            >
-              <FormControlLabel
-                control={
-                  <Switch
-                    checked={isAnonymous}
-                    onChange={(e) =>
-                      handleAnonymousModeChange(e.target.checked)
-                    }
-                    color="primary"
-                    size="small"
-                  />
-                }
-                label={
-                  <Typography
-                    variant="body2"
-                    fontWeight={500}
-                    sx={{ fontSize: { xs: "0.8rem", md: "0.875rem" } }}
-                  >
-                    Anonymous Mode
-                  </Typography>
-                }
-                sx={{ m: 0 }}
-              />
-              {isAnonymous && anonymousName && (
-                <Chip
-                  label={`🎭 ${anonymousName}`}
-                  size="small"
-                  color="warning"
-                  sx={{ fontSize: "0.7rem", height: 24 }}
-                />
-              )}
-            </Box>
-          )}
-          <Paper
-            sx={{
-              display: "flex",
-              alignItems: "flex-end",
-              p: { xs: 0.75, md: 1 },
-              backgroundColor:
-                theme.palette.mode === "dark" ? "#40444b" : "#ebedef",
-              borderRadius: 2,
-              gap: 0.5,
-            }}
-          >
-            <TextField
-              fullWidth
-              variant="standard"
-              placeholder={
-                buddy
-                  ? `Message ${buddy.displayName}`
-                  : connectionState === "connected"
-                  ? `Message ${currentCourse?.name || "course"}`
-                  : "Connecting to chat..."
-              }
-              value={input}
-              onChange={handleInputChange}
-              onKeyPress={handleKeyPress}
-              multiline
-              maxRows={3}
-              InputProps={{
-                disableUnderline: true,
-                sx: {
-                  px: { xs: 0.5, md: 1 },
-                  fontSize: { xs: "0.875rem", md: "1rem" },
-                },
-                autoComplete: "off",
-              }}
-              sx={{
-                "& .MuiInputBase-input": {
-                  resize: "none",
-                  minHeight: "20px",
-                },
-              }}
-            />
-            <IconButton
-              size="small"
-              sx={{ mb: 0.25, display: { xs: "none", sm: "inline-flex" } }}
-            >
-              <EmojiEmotionsIcon />
-            </IconButton>
-            <IconButton
-              size="small"
-              onClick={handleSendMessage}
-              disabled={
-                !input.trim() || (!buddy && connectionState !== "connected")
-              }
-              sx={{
-                mb: 0.25,
-                "&:not(:disabled)": {
-                  color: theme.palette.primary.main,
-                },
-              }}
-            >
-              <SendIcon />
-            </IconButton>
-          </Paper>
-        </MessageInput>
+        <MessageInput
+          input={input}
+          onInputChange={handleInputChange}
+          onSendMessage={handleSendMessage}
+          onKeyPress={handleKeyPress}
+          placeholder={getPlaceholder()}
+          buddy={buddy}
+          currentCourse={currentCourse}
+          isAnonymous={isAnonymous}
+          anonymousName={anonymousName}
+          onAnonymousModeChange={!buddy ? handleAnonymousModeChange : undefined}
+        />
       </ChatContainer>
 
       {/* Edit Message Dialog */}
-      <Dialog
+      <EditMessageDialog
         open={isEditDialogOpen}
-        onClose={() => setIsEditDialogOpen(false)}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Edit Message</DialogTitle>
-        <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            multiline
-            rows={4}
-            value={editingMessage?.content || ""}
-            onChange={(e) =>
-              setEditingMessage((prev) =>
-                prev ? { ...prev, content: e.target.value } : null
-              )
-            }
-            sx={{ mt: 1 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setIsEditDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleSaveEdit} variant="contained">
-            Save
-          </Button>
-        </DialogActions>
-      </Dialog>
+        messageId={editingMessage?.id || null}
+        initialContent={editingMessage?.content || ""}
+        onClose={() => {
+          setIsEditDialogOpen(false);
+          setEditingMessage(null);
+        }}
+        onSave={handleSaveEdit}
+      />
     </Box>
   );
 }
