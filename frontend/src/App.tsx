@@ -755,40 +755,6 @@ function App() {
                 {isAuthenticated ? "Go to Dashboard" : "Start Connecting Now"}
               </Button>
             </Stack>
-            <Box
-              sx={{
-                mt: 4,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                gap: 2,
-              }}
-            >
-              <Chip
-                label="✨ Free to Join"
-                sx={{
-                  bgcolor: "rgba(255, 255, 255, 0.2)",
-                  color: "white",
-                  fontWeight: "bold",
-                }}
-              />
-              <Chip
-                label="🚀 Instant Access"
-                sx={{
-                  bgcolor: "rgba(255, 255, 255, 0.2)",
-                  color: "white",
-                  fontWeight: "bold",
-                }}
-              />
-              <Chip
-                label="🔒 100% Secure"
-                sx={{
-                  bgcolor: "rgba(255, 255, 255, 0.2)",
-                  color: "white",
-                  fontWeight: "bold",
-                }}
-              />
-            </Box>
           </Box>
         </Paper>
       </Container>
