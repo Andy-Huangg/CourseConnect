@@ -155,6 +155,10 @@ namespace backend.Repositories
 
             await _context.SaveChangesAsync();
 
+            // Reload the entities to get the updated Buddy navigation properties
+            await _context.Entry(studyBuddy1).Reference(sb => sb.Buddy).LoadAsync();
+            await _context.Entry(studyBuddy2).Reference(sb => sb.Buddy).LoadAsync();
+
             Console.WriteLine($"Study buddy match created between users {userId1} and {userId2} for course {courseId}");
 
             // Notify both users about the match via WebSocket
