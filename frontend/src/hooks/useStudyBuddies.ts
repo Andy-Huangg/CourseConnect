@@ -13,6 +13,7 @@ interface StudyBuddy {
     id: number;
     username: string;
     displayName: string;
+    contactPreference?: string;
   };
   matchedAt?: string;
   contactPreference?: string;
@@ -125,71 +126,67 @@ export function useStudyBuddies() {
       const currentUserId = getCurrentUserId();
       if (!currentUserId) return;
 
+      // Only process updates for the current user
       const isForCurrentUser = update.userId === parseInt(currentUserId);
-      const isCurrentUserBuddy =
-        update.studyBuddy?.buddy?.id === parseInt(currentUserId);
 
-      if (isForCurrentUser || isCurrentUserBuddy) {
-        // Update state based on the WebSocket message
-        if (update.studyBuddy) {
-          setStudyBuddies((prev) => {
-            const existing = prev.find((sb) => sb.courseId === update.courseId);
+      if (!isForCurrentUser) {
+        return; // Not relevant to current user
+      }
 
-            // Find course name
-            let courseName =
-              courses.find((c) => c.id === update.courseId)?.name ||
-              existing?.courseName;
-            if (!courseName && update.courseId === 1) {
-              courseName = "Global Chat";
-            }
-            if (!courseName) {
-              courseName = `Course ${update.courseId}`;
-            }
+      // Update state based on the WebSocket message
+      if (update.studyBuddy) {
+        setStudyBuddies((prev) => {
+          const existing = prev.find((sb) => sb.courseId === update.courseId);
 
-            if (existing) {
-              // Update existing record
-              return prev.map((sb) =>
-                sb.courseId === update.courseId
-                  ? {
-                      ...existing,
-                      ...update.studyBuddy!,
-                      courseName: courseName,
-                      id: existing.id, // Preserve existing ID
-                    }
-                  : sb
-              );
-            } else if (isForCurrentUser) {
-              // Add new record for current user
-              return [
-                ...prev,
-                {
-                  ...update.studyBuddy!,
-                  courseName: courseName,
-                },
-              ];
-            }
-            return prev;
-          });
-        } else {
-          // Handle non-studyBuddy updates
-          switch (update.updateType) {
-            case "OPTED_OUT":
-              if (isForCurrentUser) {
-                setStudyBuddies((prev) =>
-                  prev.filter((sb) => sb.courseId !== update.courseId)
-                );
-              }
-              break;
-            case "DISCONNECTED":
-              setStudyBuddies((prev) =>
-                prev.map((sb) =>
-                  sb.courseId === update.courseId
-                    ? { ...sb, buddy: undefined, matchedAt: undefined }
-                    : sb
-                )
-              );
-              break;
+          // Find course name
+          let courseName =
+            courses.find((c) => c.id === update.courseId)?.name ||
+            existing?.courseName;
+          if (!courseName && update.courseId === 1) {
+            courseName = "Global Chat";
           }
+          if (!courseName) {
+            courseName = `Course ${update.courseId}`;
+          }
+
+          const studyBuddyData = update.studyBuddy!; // We know it exists because of the if condition
+          const updatedStudyBuddy: StudyBuddy = {
+            id: studyBuddyData.id!,
+            courseId: studyBuddyData.courseId!,
+            courseName: courseName,
+            isOptedIn: studyBuddyData.isOptedIn!,
+            buddy: studyBuddyData.buddy,
+            matchedAt: studyBuddyData.matchedAt,
+            contactPreference: studyBuddyData.contactPreference,
+          };
+
+          if (existing) {
+            // Update existing record
+            return prev.map((sb) =>
+              sb.courseId === update.courseId ? updatedStudyBuddy : sb
+            );
+          } else {
+            // Add new record
+            return [...prev, updatedStudyBuddy];
+          }
+        });
+      } else {
+        // Handle non-studyBuddy updates
+        switch (update.updateType) {
+          case "OPTED_OUT":
+            setStudyBuddies((prev) =>
+              prev.filter((sb) => sb.courseId !== update.courseId)
+            );
+            break;
+          case "DISCONNECTED":
+            setStudyBuddies((prev) =>
+              prev.map((sb) =>
+                sb.courseId === update.courseId
+                  ? { ...sb, buddy: undefined, matchedAt: undefined }
+                  : sb
+              )
+            );
+            break;
         }
       }
     },
