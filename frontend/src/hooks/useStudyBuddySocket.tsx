@@ -9,6 +9,7 @@ interface StudyBuddy {
     id: number;
     username: string;
     displayName: string;
+    contactPreference?: string;
   };
   matchedAt?: string;
   contactPreference?: string;

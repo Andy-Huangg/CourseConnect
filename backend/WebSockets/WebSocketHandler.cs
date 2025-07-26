@@ -558,7 +558,7 @@ namespace backend.WebSockets
             }
         }
 
-        public static async Task BroadcastStudyBuddyUpdate(int userId, int courseId, string updateType, StudyBuddy? studyBuddy = null)
+        public static async Task BroadcastStudyBuddyUpdate(int userId, int courseId, string updateType, StudyBuddy? studyBuddy = null, string? buddyContactPreference = null)
         {
             var message = new
             {
@@ -575,7 +575,8 @@ namespace backend.WebSockets
                     {
                         id = studyBuddy.Buddy.Id,
                         username = studyBuddy.Buddy.Username,
-                        displayName = studyBuddy.Buddy.DisplayName
+                        displayName = studyBuddy.Buddy.DisplayName,
+                        contactPreference = buddyContactPreference
                     } : null,
                     matchedAt = studyBuddy.MatchedAt,
                     contactPreference = studyBuddy.ContactPreference

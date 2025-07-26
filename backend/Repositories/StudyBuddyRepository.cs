@@ -158,8 +158,8 @@ namespace backend.Repositories
             Console.WriteLine($"Study buddy match created between users {userId1} and {userId2} for course {courseId}");
 
             // Notify both users about the match via WebSocket
-            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId1, courseId, "MATCHED", studyBuddy1);
-            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId2, courseId, "MATCHED", studyBuddy2);
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId1, courseId, "MATCHED", studyBuddy1, studyBuddy2.ContactPreference);
+            await WebSocketHandler.BroadcastStudyBuddyUpdate(userId2, courseId, "MATCHED", studyBuddy2, studyBuddy1.ContactPreference);
 
             return true;
         }

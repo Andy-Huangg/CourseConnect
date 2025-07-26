@@ -31,6 +31,7 @@ interface StudyBuddy {
     id: number;
     username: string;
     displayName: string;
+    contactPreference?: string;
   };
   matchedAt?: string;
   contactPreference?: string;
@@ -118,13 +119,10 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
         // Update state directly based on the WebSocket message
         if (update.studyBuddy) {
           setStudyBuddies((prev) => {
-            // Check if this update is relevant to the current user
-            // Either it's directly for them, or they're the buddy in the update
+            // Only process updates for the current user
             const isForCurrentUser = update.userId === parseInt(currentUserId);
-            const isCurrentUserBuddy =
-              update.studyBuddy?.buddy?.id === parseInt(currentUserId);
 
-            if (!isForCurrentUser && !isCurrentUserBuddy) {
+            if (!isForCurrentUser) {
               return prev; // Not relevant to current user
             }
 
@@ -146,32 +144,25 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
               courseName = `Course ${update.courseId}`;
             }
 
+            const studyBuddyData = update.studyBuddy!; // We know it exists because of the if condition
+            const updatedStudyBuddy: StudyBuddy = {
+              id: studyBuddyData.id!,
+              courseId: studyBuddyData.courseId!,
+              courseName: courseName,
+              isOptedIn: studyBuddyData.isOptedIn!,
+              buddy: studyBuddyData.buddy,
+              matchedAt: studyBuddyData.matchedAt,
+              contactPreference: studyBuddyData.contactPreference,
+            };
+
             if (existing) {
               // Update existing record
-
               return prev.map((sb) =>
-                sb.courseId === update.courseId
-                  ? {
-                      ...existing,
-                      ...update.studyBuddy!,
-                      courseName: courseName,
-                      // Make sure we preserve the current user's perspective
-                      id: existing.id, // Keep the existing ID for current user's record
-                    }
-                  : sb
+                sb.courseId === update.courseId ? updatedStudyBuddy : sb
               );
             } else {
-              // Add new record if it's for the current user
-              if (isForCurrentUser) {
-                return [
-                  ...prev,
-                  {
-                    ...update.studyBuddy!,
-                    courseName: courseName,
-                  },
-                ];
-              }
-              return prev;
+              // Add new record
+              return [...prev, updatedStudyBuddy];
             }
           });
         } else {
@@ -437,10 +428,10 @@ export default function StudyBuddy({ onChatBuddy }: StudyBuddyProps = {}) {
                           <br />
                           You're connected with{" "}
                           <strong>{studyBuddy?.buddy?.displayName}</strong>
-                          {studyBuddy?.contactPreference && (
+                          {studyBuddy?.buddy?.contactPreference && (
                             <>
                               <br />
-                              Contact: {studyBuddy.contactPreference}
+                              Contact: {studyBuddy.buddy.contactPreference}
                             </>
                           )}
                         </Alert>
