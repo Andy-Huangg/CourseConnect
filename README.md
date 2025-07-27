@@ -10,6 +10,8 @@ By enabling real‑time course chat with anonymity and peer pairing, Course Co
 
 ## Unique Features
 
+- **Real-Time Communication**  
+  Live messaging with instant delivery using WebSockets for seamless chat experiences.
 - **Study Buddy Matching**  
   One private, anonymous pairing per course for focused collaboration.
 - **Anonymous Chat**  
@@ -31,10 +33,6 @@ These additional features have also been implemented:
 
 - **Redux** for centralized state management
 - **Dockerization** of both frontend and backend for consistent environments
-
-## Video Demonstration
-
-<!-- Video demonstration link will be added here once available. -->
 
 ## Setup Instructions
 
@@ -65,6 +63,14 @@ The project requires several environment variables and configuration files:
      }
    }
    ```
+
+2. **Create a `.env` file** in the `backend/` directory with your database connection:
+
+   ```env
+   ConnectionStrings__AzureSqlConnection=Server=tcp:<your-server>.database.windows.net,1433;Initial Catalog=<your-database>;Persist Security Info=False;User ID=<your-username>;Password=<your-password>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
+   ```
+
+   > **Note:** Replace the placeholders with your actual Azure SQL Database connection details. For local development, you can also use SQL Server LocalDB or SQL Server Express.
 
 #### Frontend Configuration
 
@@ -126,7 +132,8 @@ Choose one of the following setup methods:
    ```bash
    cd backend
    dotnet restore
-   dotnet ef database update
+   # Note: Skip 'dotnet ef database update' if using the provided Azure database
+   # Only run migrations if setting up your own local database
    dotnet run
    ```
 
@@ -172,8 +179,9 @@ npx cypress open
 
 **Database connection issues:**
 
-- Confirm database connection string is correct in backend `.env`
-- Run `dotnet ef database update` to apply migrations
+- Confirm database connection string is correct in backend `.env` file
+- For Azure SQL Database, ensure your IP address is added to the firewall rules
+- **Only run `dotnet ef database update` if setting up your own local database** - skip this if using the provided Azure database
 - Check that SQL Server is running and accessible
 
 **WebSocket connection fails:**
