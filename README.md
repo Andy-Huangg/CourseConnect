@@ -52,10 +52,13 @@ The project requires several environment variables and configuration files:
 
 #### Backend Configuration
 
-1. **Update `backend/appsettings.Development.json`** with your JWT configuration:
+1. **Update `backend/appsettings.Development.json`** with your configuration:
 
    ```json
    {
+     "ConnectionStrings": {
+       "AzureSqlConnection": "Server=tcp:<your-server>.database.windows.net,1433;Initial Catalog=<your-database>;Persist Security Info=False;User ID=<your-username>;Password=<your-password>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;"
+     },
      "Jwt": {
        "Key": "<YOUR_JWT_SECRET_KEY>",
        "Issuer": "<YOUR_ISSUER_URL>",
@@ -64,13 +67,7 @@ The project requires several environment variables and configuration files:
    }
    ```
 
-2. **Create a `.env` file** in the `backend/` directory with your database connection:
-
-   ```env
-   ConnectionStrings__AzureSqlConnection=Server=tcp:<your-server>.database.windows.net,1433;Initial Catalog=<your-database>;Persist Security Info=False;User ID=<your-username>;Password=<your-password>;MultipleActiveResultSets=False;Encrypt=True;TrustServerCertificate=False;Connection Timeout=30;
-   ```
-
-   > **Note:** Replace the placeholders with your actual Azure SQL Database connection details. For local development, you can also use SQL Server LocalDB or SQL Server Express.
+   > **Note:** Replace the placeholders with your actual Azure SQL Database and JWT configuration details. For local development, you can also use SQL Server LocalDB with connection string: `Server=(localdb)\\mssqllocaldb;Database=CourseConnect;Trusted_Connection=true;`
 
 #### Frontend Configuration
 
@@ -168,7 +165,7 @@ npx cypress open
 
 **Backend fails to start with JWT error:**
 
-- Ensure all JWT configuration values are set in `appsettings.json` (Key, Issuer, Audience)
+- Ensure all JWT configuration values are set in `appsettings.Development.json` (Key, Issuer, Audience)
 - Verify the JWT key is a valid base64 string (minimum 32 characters)
 
 **Frontend cannot connect to backend:**
@@ -179,7 +176,7 @@ npx cypress open
 
 **Database connection issues:**
 
-- Confirm database connection string is correct in backend `.env` file
+- Confirm database connection string is correct in `appsettings.Development.json`
 - For Azure SQL Database, ensure your IP address is added to the firewall rules
 - **Only run `dotnet ef database update` if setting up your own local database** - skip this if using the provided Azure database
 - Check that SQL Server is running and accessible
