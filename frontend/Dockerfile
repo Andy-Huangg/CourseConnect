@@ -1,5 +1,5 @@
 # Frontend Dockerfile
-FROM node:20-alpine AS build
+FROM node:18-alpine AS build
 WORKDIR /app
 
 # Copy and install dependencies
