@@ -67,7 +67,7 @@ The project requires several environment variables and configuration files:
    }
    ```
 
-   > **Note:** Replace the placeholders with your actual Azure SQL Database and JWT configuration details. For local development, you can also use SQL Server LocalDB with connection string: `Server=(localdb)\\mssqllocaldb;Database=CourseConnect;Trusted_Connection=true;`
+   > **Note:** Replace the placeholders with your actual Azure SQL Database and JWT configuration details.
 
 #### Frontend Configuration
 
@@ -91,7 +91,7 @@ The project requires several environment variables and configuration files:
 
 Choose one of the following setup methods:
 
-#### Option 1: Docker Setup (Recommended)
+#### Option 1: Docker Setup
 
 1. **Clone the repository:**
 
@@ -100,15 +100,17 @@ Choose one of the following setup methods:
    cd CourseConnect
    ```
 
-2. **Configure environment variables** (see Environment Configuration above)
+2. **Configure backend settings** (update `backend/appsettings.Development.json` - see Backend Configuration above)
 
-3. **Run with Docker Compose:**
+3. **Configure frontend environment** (create `frontend/.env` - see Frontend Configuration above)
+
+4. **Run with Docker Compose:**
 
    ```bash
    docker-compose up --build
    ```
 
-4. **Access the application:**
+5. **Access the application:**
    - Frontend: http://localhost:3000
    - Backend API: http://localhost:5000
    - Backend Swagger UI: http://localhost:5000/swagger
@@ -122,19 +124,18 @@ Choose one of the following setup methods:
    cd CourseConnect
    ```
 
-2. **Configure environment variables** (see Environment Configuration above)
+2. **Configure backend settings** (update `backend/appsettings.Development.json` - see Backend Configuration above)
 
-3. **Setup Backend:**
+3. **Configure frontend environment** (create `frontend/.env` - see Frontend Configuration above)
+
+4. **Setup Backend:**
 
    ```bash
    cd backend
-   dotnet restore
-   # Note: Skip 'dotnet ef database update' if using the provided Azure database
-   # Only run migrations if setting up your own local database
    dotnet run
    ```
 
-4. **Setup Frontend (in a new terminal):**
+5. **Setup Frontend (in a new terminal):**
 
    ```bash
    cd frontend
@@ -142,7 +143,7 @@ Choose one of the following setup methods:
    npm run dev
    ```
 
-5. **Access the application:**
+6. **Access the application:**
    - Frontend: http://localhost:5173
    - Backend API: https://localhost:7152
    - Backend Swagger UI: https://localhost:7152/swagger
@@ -158,33 +159,6 @@ npx cypress run
 # or for interactive mode
 npx cypress open
 ```
-
-## Troubleshooting
-
-### Common Issues
-
-**Backend fails to start with JWT error:**
-
-- Ensure all JWT configuration values are set in `appsettings.Development.json` (Key, Issuer, Audience)
-- Verify the JWT key is a valid base64 string (minimum 32 characters)
-
-**Frontend cannot connect to backend:**
-
-- Check that `VITE_API_URL` in frontend `.env` matches your backend URL
-- Ensure backend is running and accessible
-- Verify CORS configuration allows your frontend origin
-
-**Database connection issues:**
-
-- Confirm database connection string is correct in `appsettings.Development.json`
-- For Azure SQL Database, ensure your IP address is added to the firewall rules
-- **Only run `dotnet ef database update` if setting up your own local database** - skip this if using the provided Azure database
-- Check that SQL Server is running and accessible
-
-**WebSocket connection fails:**
-
-- Verify `VITE_WS_URL` in frontend `.env` uses the correct protocol (wss:// for HTTPS, ws:// for HTTP)
-- Check that WebSocket endpoint `/ws/chat` is accessible
 
 ### Need Help?
 
