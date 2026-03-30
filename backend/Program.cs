@@ -15,21 +15,33 @@ namespace backend
         {
             var builder = WebApplication.CreateBuilder(args);
 
+            // Bind to Railway's PORT env var if present
+            var port = Environment.GetEnvironmentVariable("PORT");
+            if (!string.IsNullOrEmpty(port))
+            {
+                builder.WebHost.UseUrls($"http://0.0.0.0:{port}");
+            }
+
             // Add services to the container.
             builder.Services.AddControllers();
 
-            // Configure DbContext before building the app
-            var connectionString = builder.Configuration.GetConnectionString("AzureSqlConnection");
-            if (builder.Environment.IsDevelopment())
+            // Configure DbContext - support Railway's DATABASE_URL or appsettings
+            var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
+            string connectionString;
+            if (!string.IsNullOrEmpty(databaseUrl))
             {
-                builder.Services.AddDbContext<AppDbContext>(options =>
-                    options.UseSqlServer(connectionString));
+                // Parse Railway's DATABASE_URL (postgres://user:pass@host:port/db)
+                var uri = new Uri(databaseUrl);
+                var userInfo = uri.UserInfo.Split(':');
+                connectionString = $"Host={uri.Host};Port={uri.Port};Database={uri.AbsolutePath.TrimStart('/')};Username={userInfo[0]};Password={userInfo[1]};SSL Mode=Require;Trust Server Certificate=true";
             }
             else
             {
-                builder.Services.AddDbContext<AppDbContext>(options =>
-                    options.UseSqlServer(connectionString));
+                connectionString = builder.Configuration.GetConnectionString("DefaultConnection")
+                    ?? throw new InvalidOperationException("No database connection string found. Set DATABASE_URL or ConnectionStrings:DefaultConnection.");
             }
+            builder.Services.AddDbContext<AppDbContext>(options =>
+                options.UseNpgsql(connectionString));
 
             builder.Services.AddScoped<IChatRepository, ChatRepository>();
             builder.Services.AddScoped<ICourseRepository, CourseRepository>();
@@ -40,10 +52,10 @@ namespace backend
             builder.Services.AddScoped<IAnonymousNameService, AnonymousNameService>();
 
 
-            // Configure JWT Auth
-            var jwtKey = builder.Configuration["Jwt:Key"];
-            var jwtIssuer = builder.Configuration["Jwt:Issuer"];
-            var jwtAudience = builder.Configuration["Jwt:Audience"];
+            // Configure JWT Auth - env vars take precedence over appsettings
+            var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? builder.Configuration["Jwt:Key"];
+            var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
+            var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
 
             if (string.IsNullOrEmpty(jwtKey) || string.IsNullOrEmpty(jwtIssuer) || string.IsNullOrEmpty(jwtAudience))
             {
@@ -69,13 +81,15 @@ namespace backend
             });
             builder.Services.AddAuthorization();
 
-            // Setup CORS
+            // Setup CORS - configurable via CORS_ORIGINS env var
+            var corsOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?.Split(',', StringSplitOptions.RemoveEmptyEntries)
+                ?? new[] { "http://localhost:5173", "http://localhost:3000" };
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",
                     policy =>
                     {
-                        policy.WithOrigins("http://localhost:5173", "http://localhost:3000", "https://msa-phase2.vercel.app", "https://course-connect-andy-huanggs-projects.vercel.app")
+                        policy.WithOrigins(corsOrigins)
                               .AllowAnyHeader()
                               .AllowAnyMethod();
                     });
@@ -114,6 +128,13 @@ namespace backend
             });
 
             var app = builder.Build();
+
+            // Auto-apply migrations on startup
+            using (var scope = app.Services.CreateScope())
+            {
+                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                db.Database.Migrate();
+            }
 
             // Use Web Sockets
             app.UseWebSockets();
@@ -154,10 +175,7 @@ namespace backend
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
-
             }
-
-            app.UseHttpsRedirection();
             app.UseAuthentication();
             app.UseAuthorization();
             app.MapControllers();

@@ -1,4 +1,15 @@
 services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_USER: courseconnect
+      POSTGRES_PASSWORD: localdev
+      POSTGRES_DB: courseconnect
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
   backend:
     build: ./backend
     ports:
@@ -6,8 +17,11 @@ services:
     environment:
       - ASPNETCORE_ENVIRONMENT=Development
       - ASPNETCORE_URLS=http://+:5000
+      - DATABASE_URL=postgres://courseconnect:localdev@db:5432/courseconnect
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
     depends_on:
-      - frontend
+      - db
+
   frontend:
     build:
       context: ./frontend
@@ -17,3 +31,8 @@ services:
         VITE_WS_URL: ws://localhost:5000/ws/chat
     ports:
       - "3000:80"
+    environment:
+      - PORT=80
+
+volumes:
+  pgdata:
