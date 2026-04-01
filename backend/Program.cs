@@ -52,10 +52,9 @@ namespace backend
             builder.Services.AddScoped<IAnonymousNameService, AnonymousNameService>();
 
 
-            // Configure JWT Auth - env vars take precedence over appsettings
-            var jwtKey = Environment.GetEnvironmentVariable("JWT_KEY") ?? builder.Configuration["Jwt:Key"];
-            var jwtIssuer = Environment.GetEnvironmentVariable("JWT_ISSUER") ?? builder.Configuration["Jwt:Issuer"];
-            var jwtAudience = Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? builder.Configuration["Jwt:Audience"];
+            var jwtKey = builder.Configuration["Jwt:Key"];
+            var jwtIssuer = builder.Configuration["Jwt:Issuer"];
+            var jwtAudience = builder.Configuration["Jwt:Audience"];
 
             if (string.IsNullOrEmpty(jwtKey) || string.IsNullOrEmpty(jwtIssuer) || string.IsNullOrEmpty(jwtAudience))
             {
@@ -83,7 +82,7 @@ namespace backend
 
             // Setup CORS - configurable via CORS_ORIGINS env var
             var corsOrigins = Environment.GetEnvironmentVariable("CORS_ORIGINS")?.Split(',', StringSplitOptions.RemoveEmptyEntries)
-                ?? new[] { "http://localhost:5173", "http://localhost:3000" };
+                ?? new[] { "http://localhost:5173", "http://localhost:3000", "https://msa-phase2.vercel.app", "https://course-connect-andy-huanggs-projects.vercel.app" };
             builder.Services.AddCors(options =>
             {
                 options.AddPolicy("AllowFrontend",
