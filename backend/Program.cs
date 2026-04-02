@@ -135,6 +135,8 @@ namespace backend
                 db.Database.Migrate();
             }
 
+            app.UseCors("AllowFrontend");
+
             // Use Web Sockets
             app.UseWebSockets();
 
@@ -166,8 +168,6 @@ namespace backend
                     context.Response.StatusCode = 400;
                 }
             });
-
-            app.UseCors("AllowFrontend");
 
             // Configure the HTTP request pipeline.
             if (app.Environment.IsDevelopment())
