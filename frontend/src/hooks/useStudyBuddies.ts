@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import {
   useStudyBuddySocket,
   type StudyBuddyUpdateMessage,
@@ -28,6 +28,7 @@ interface Course {
 export function useStudyBuddies() {
   const [studyBuddies, setStudyBuddies] = useState<StudyBuddy[]>([]);
   const [courses, setCourses] = useState<Course[]>([]);
+  const coursesRef = useRef<Course[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -41,12 +42,13 @@ export function useStudyBuddies() {
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
         const data = await response.json();
         setCourses(data);
+        coursesRef.current = data;
         return data;
       } else {
         throw new Error("Failed to fetch courses");
@@ -78,7 +80,7 @@ export function useStudyBuddies() {
         // Enrich study buddies with course names
         const enrichedStudyBuddies = studyBuddiesData.map((sb: StudyBuddy) => {
           let courseName = coursesData.find(
-            (course: Course) => course.id === sb.courseId
+            (course: Course) => course.id === sb.courseId,
           )?.name;
 
           // Special handling for Global course
@@ -140,7 +142,7 @@ export function useStudyBuddies() {
 
           // Find course name
           let courseName =
-            courses.find((c) => c.id === update.courseId)?.name ||
+            coursesRef.current.find((c) => c.id === update.courseId)?.name ||
             existing?.courseName;
           if (!courseName && update.courseId === 1) {
             courseName = "Global Chat";
@@ -163,7 +165,7 @@ export function useStudyBuddies() {
           if (existing) {
             // Update existing record
             return prev.map((sb) =>
-              sb.courseId === update.courseId ? updatedStudyBuddy : sb
+              sb.courseId === update.courseId ? updatedStudyBuddy : sb,
             );
           } else {
             // Add new record
@@ -175,7 +177,7 @@ export function useStudyBuddies() {
         switch (update.updateType) {
           case "OPTED_OUT":
             setStudyBuddies((prev) =>
-              prev.filter((sb) => sb.courseId !== update.courseId)
+              prev.filter((sb) => sb.courseId !== update.courseId),
             );
             break;
           case "DISCONNECTED":
@@ -183,14 +185,14 @@ export function useStudyBuddies() {
               prev.map((sb) =>
                 sb.courseId === update.courseId
                   ? { ...sb, buddy: undefined, matchedAt: undefined }
-                  : sb
-              )
+                  : sb,
+              ),
             );
             break;
         }
       }
     },
-    [courses]
+    [],
   );
 
   useStudyBuddySocket(handleStudyBuddyUpdate);
