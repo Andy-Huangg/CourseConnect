@@ -1,4 +1,10 @@
-import React, { createContext, useState, useEffect, useCallback } from "react";
+import React, {
+  createContext,
+  useState,
+  useEffect,
+  useCallback,
+  useRef,
+} from "react";
 import { useAppSelector } from "../app/hooks";
 
 interface Course {
@@ -26,7 +32,8 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
   const [enrolledCourses, setEnrolledCourses] = useState<Course[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [lastFetch, setLastFetch] = useState<number>(0);
+  const lastFetchRef = useRef<number>(0);
+  const allCoursesRef = useRef<Course[]>([]);
 
   const apiUrl = import.meta.env.VITE_API_URL;
 
@@ -46,8 +53,8 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
       // Skip if data is fresh and not forced
       if (
         !force &&
-        Date.now() - lastFetch < CACHE_DURATION &&
-        allCourses.length > 0
+        Date.now() - lastFetchRef.current < CACHE_DURATION &&
+        allCoursesRef.current.length > 0
       ) {
         return;
       }
@@ -89,9 +96,10 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
           enrolledResponse.json(),
         ]);
 
+        allCoursesRef.current = coursesData;
         setAllCourses(coursesData);
         setEnrolledCourses(enrolledData);
-        setLastFetch(Date.now());
+        lastFetchRef.current = Date.now();
       } catch (error) {
         // Only set error for non-auth related issues
         if (error instanceof Error && !error.message.includes("401")) {
@@ -101,18 +109,13 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
         setIsLoading(false);
       }
     },
-    [apiUrl, token, isAuthenticated, lastFetch, allCourses.length]
+    [apiUrl, token, isAuthenticated],
   );
 
-  // Initial fetch - only when authenticated with a small delay to ensure auth state is settled
+  // Initial fetch - only when authenticated with a small delay
   useEffect(() => {
     if (isAuthenticated && token) {
-      // Small delay to ensure auth state is fully settled
-      const timeoutId = setTimeout(() => {
-        fetchCourses();
-      }, 100);
-
-      return () => clearTimeout(timeoutId);
+      fetchCourses();
     } else {
       // Clear courses when not authenticated
       setAllCourses([]);
@@ -138,7 +141,7 @@ export function CourseProvider({ children }: { children: React.ReactNode }) {
         setEnrolledCourses((prev) => prev.filter((c) => c.id !== courseId));
       }
     },
-    [allCourses, enrolledCourses]
+    [allCourses, enrolledCourses],
   );
 
   const addNewCourse = useCallback((course: Course) => {

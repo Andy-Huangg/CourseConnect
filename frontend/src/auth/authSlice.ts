@@ -78,7 +78,7 @@ export const login = createAsyncThunk(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(credentials),
-        }
+        },
       );
 
       const data = await response.json();
@@ -93,7 +93,7 @@ export const login = createAsyncThunk(
     } catch {
       return rejectWithValue("An error occurred during login");
     }
-  }
+  },
 );
 
 export const signup = createAsyncThunk(
@@ -106,7 +106,7 @@ export const signup = createAsyncThunk(
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify(credentials),
-        }
+        },
       );
 
       // Try to get the response as text first
@@ -127,7 +127,7 @@ export const signup = createAsyncThunk(
         return rejectWithValue(
           errorMessage === "Username already exists."
             ? "Username already exists."
-            : errorMessage
+            : errorMessage,
         );
       }
 
@@ -137,7 +137,7 @@ export const signup = createAsyncThunk(
     } catch {
       return rejectWithValue("An error occurred during signup");
     }
-  }
+  },
 );
 
 export const updateDisplayName = createAsyncThunk(
@@ -158,7 +158,7 @@ export const updateDisplayName = createAsyncThunk(
             "Content-Type": "application/json",
           },
           body: JSON.stringify({ displayName }),
-        }
+        },
       );
 
       const data = await response.json();
@@ -179,7 +179,7 @@ export const updateDisplayName = createAsyncThunk(
     } catch {
       return rejectWithValue("An error occurred while updating display name");
     }
-  }
+  },
 );
 
 // Create slice
@@ -201,8 +201,10 @@ const authSlice = createSlice({
     checkAuth: (state) => {
       const token = localStorage.getItem("jwt");
       if (token && isTokenValid(token)) {
-        state.token = token;
-        state.user = getUserFromToken(token);
+        if (state.token !== token) {
+          state.token = token;
+          state.user = getUserFromToken(token);
+        }
         state.isAuthenticated = true;
       } else {
         localStorage.removeItem("jwt");

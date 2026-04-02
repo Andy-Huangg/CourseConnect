@@ -21,7 +21,7 @@ export function useChatSocket(
   url: string | null,
   courseId: number | null,
   isAnonymous: boolean = false,
-  token?: string | null // Add token parameter
+  token?: string | null, // Add token parameter
 ) {
   const socketRef = useRef<WebSocket | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
@@ -62,7 +62,7 @@ export function useChatSocket(
               Authorization: `Bearer ${jwtToken}`,
               "Content-Type": "application/json",
             },
-          }
+          },
         );
 
         if (response.ok) {
@@ -82,7 +82,7 @@ export function useChatSocket(
         setIsLoading(false);
       }
     },
-    [token]
+    [token],
   );
 
   // Function to safely close WebSocket connection
@@ -127,9 +127,6 @@ export function useChatSocket(
   const connectWebSocket = useCallback(() => {
     if (!courseId || !url) return;
 
-    // Set connecting state immediately
-    setConnectionState("connecting");
-
     // Prevent multiple simultaneous connection attempts
     if (isConnectingRef.current) {
       return;
@@ -147,6 +144,8 @@ export function useChatSocket(
         return;
       }
     }
+
+    setConnectionState("connecting");
 
     // Clean up existing connection if any
     if (socketRef.current) {
@@ -256,7 +255,7 @@ export function useChatSocket(
 
           setMessages((prev) => {
             const newMessages = prev.map((msg) =>
-              msg.id === updatedMessage.id ? updatedMessage : msg
+              msg.id === updatedMessage.id ? updatedMessage : msg,
             );
             // Update cache
             if (courseId) {
@@ -334,7 +333,7 @@ export function useChatSocket(
       if (event.code !== 1000 && reconnectAttemptsRef.current < 5) {
         const delay = Math.min(
           1000 * Math.pow(2, reconnectAttemptsRef.current),
-          30000
+          30000,
         );
         reconnectTimeoutRef.current = window.setTimeout(() => {
           reconnectAttemptsRef.current++;
@@ -450,7 +449,7 @@ export function useChatSocket(
               "Content-Type": "application/json",
             },
             body: JSON.stringify({ content: newContent }),
-          }
+          },
         );
 
         if (response.ok) {
@@ -466,7 +465,7 @@ export function useChatSocket(
         return { success: false, error: "Network error" };
       }
     },
-    []
+    [],
   );
 
   const deleteMessage = useCallback(async (messageId: number) => {
@@ -481,7 +480,7 @@ export function useChatSocket(
             Authorization: `Bearer ${token}`,
             "Content-Type": "application/json",
           },
-        }
+        },
       );
 
       if (response.ok) {
